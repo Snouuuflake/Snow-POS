@@ -1,10 +1,66 @@
 const dns = require("node:dns");
 const os = require("node:os");
+const QRCode = require("qrcode");
 var express = require("express");
 var app = express();
 app.use(express.json());
 
-const addy = 3000;
+const PORT = 3000;
+
+// "implementation" of ipcMain for fork process,
+// for syntax's sake
+const ipcProcess = {
+  /**
+   * Sends an ipc message to the main process
+   * Replicates ipcMain.send
+   * @param {string} c channel
+   * @param {string} d data
+   */
+  send: (c, d) => {
+    process.send(JSON.stringify({ channel: c, data: d }));
+  },
+  callbacks: {},
+  /**
+   * Sets up a callback for an ipc message from the main process.
+   * Replicates ipcMain.on, but the callback only takes the argument (data).
+   * @param {string} c Channel
+   * @param {function} f Callback function
+   */
+  on: function(c, f) {
+    this.callbacks[c] = f;
+  },
+};
+
+// setting up ipcProcess.on
+process.on("message", (message) => {
+  const parsedMessage = JSON.parse(message);
+  // iterates through all channels in ipcProcess.callbacks and
+  // runs the corresponding callback(message.data)
+  for (const c of Object.keys(ipcProcess.callbacks)) {
+    if (parsedMessage.channel == c) {
+      ipcProcess.callbacks[c](parsedMessage.data);
+    }
+  }
+});
+
+// FIXME: this is for testing!
+ipcProcess.on("a", (data) => {
+  console.log("Express: " + "a" + " " + data);
+});
+ipcProcess.on("b", (data) => {
+  ipcProcess.on("a", (_data) => console.log("monads"));
+});
+ipcProcess.on("c", (data) => {
+  console.log("Express: " + "c" + " " + data);
+});
+
+function getQRData(url) {
+  return new Promise((resolve1) => {
+    QRCode.toDataURL(url).then((qrCodeImage) => {
+      resolve1(qrCodeImage);
+    });
+  });
+}
 
 function getIP() {
   return new Promise((resolve1) => {
@@ -13,29 +69,48 @@ function getIP() {
       if (err) {
         resolve1(`${err}`);
       } else {
-        resolve1(`IPv4 address: ${addr}`);
+        resolve1(`${addr}`);
       }
     });
   });
 }
 
-app.get("/", function (req, res) {
+app.get("/", function(req, res) {
   getIP().then((result) => {
-    res.send(`Hello world! <BR>Server IP is: ${result} <BR>Port is ${addy}`);
+    res.send(`Hello world! <BR>Server IP is: ${result} <BR>Port is ${PORT}`);
   });
+});
+
+app.get("/mobile", (req, res) => {
+  // do nothing
 });
 
 app.post("/test-message", (req, res) => {
   res.send("Got POST request: /test-message");
   const content = req.body;
-  
+
   if (content.message) {
-    console.log(content.message);
-    process.send(content.message);
+    console.log("Got POST request: /test-message" + content.message);
+    ipcProcess.send("test-message", content.message);
   } else {
-    console.log("no message!"); 
+    console.log("no message!");
   }
   // process.send("message", content);
 });
 
-app.listen(addy);
+getIP().then((ip) => {
+  app.listen(PORT, [ip, "localhost"], () => {
+    ipcProcess.send("listening", "listening :)");
+  });
+});
+
+ipcProcess.on("req-qr", (_data) => {
+  getIP()
+    .then((ip) => {
+      return getQRData("http://" + ip + ":" + PORT);
+    })
+    .then((qrData) => {
+      ipcProcess.send("res-qr", qrData);
+    });
+  // getIP().then((ip) => { console.log(ip) });
+});
