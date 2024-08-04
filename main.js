@@ -3,7 +3,7 @@ const { app, BrowserWindow, ipcMain } = require("electron");
 const path = require("node:path");
 
 const EventEmitter = require("node:events");
-class MyEmitter extends EventEmitter { }
+class MyEmitter extends EventEmitter {}
 
 const windowList = [];
 
@@ -44,7 +44,7 @@ function loadExpress() {
      * @param {string} c Channel
      * @param {function} f Callback function
      */
-    on: function(c, f) {
+    on: function (c, f) {
       this.callbacks[c] = f;
     },
   };
@@ -73,43 +73,47 @@ const createMainWindow = () => {
   });
 
   windowList.push(win);
-  win.loadFile("test-site/index.html");
+  win.loadFile("Test-Site-Local/index.html");
+
   const expressFork = loadExpress();
+  // sets up emitting an event on every message for some channels
+  const expressForkEmitter = new MyEmitter();
+
+  // emits "new-qr" on every "res-qr" recieved
+  expressFork.ipcCustom.on("res-qr", (data) => {
+    console.log("emitting new-qr");
+    expressForkEmitter.emit("new-qr", data);
+  });
+
+  // relays any test messages from express
+  expressFork.ipcCustom.on("test-message", (data) => {
+    ipcAllWindows("test-message", data);
+    console.log("Main test-message: ", data);
+  });
+
   // all on's that arent "listening" should probably be
   // declared first.
-
   expressFork.ipcCustom.on("listening", (data) => {
     console.log(data);
-    const qrEmitter = new MyEmitter();
 
-    expressFork.ipcCustom.on("res-qr", (data) => {
-      console.log("emitting new-qr");
-      qrEmitter.emit("new-qr", data);
-    });
-
-    // expressFork.ipcCustom.send("a", "AAAA");
-    // expressFork.ipcCustom.send("b", "BBBB");
-    // expressFork.ipcCustom.send("a", "AAAA");
-    // ipcMain.on("req-qr", (_event, data) => {
-    //
-    //   // asking for a response from res-qr on channel ```"res-qr" + data```
-    //   expressFork.ipcCustom.send("spawn", "res-qr data");
-    //
-    //   expressFork.ipcCustom.on("res-qr" + data, (response) => {
-    //     ipcAllWindows("res-" + data, response);
-    //     expressFork.ipc.Custom.on("kill", data);
-    // });
-
-    ipcMain.handle("hello", (_event, data) => {return new Promise((r) => r("world"))});
-    ipcMain.handle("req-qr", (event, data) => {
+    // handle for ipcMain "req-qr" that sets up an event listener
+    // from experss for the next qr code response that resolves
+    // the handle with it, and then asks for a qr
+    ipcMain.handle("req-qr", (_event, _data) => {
       return new Promise((resolve) => {
-        qrEmitter.on("new-qr", (response) => {
-          console.log(response);
-          resolve(response);
-        });
-        expressFork.ipcCustom.send("req-qr", "hi");
+        expressForkEmitter.addListener(
+          "new-qr",
+          (response) => {
+            console.log(response);
+            resolve(response);
+          },
+          { once: true },
+        );
+        expressFork.ipcCustom.send("req-qr", "requesting qr!");
+
       });
     });
+
   });
 };
 

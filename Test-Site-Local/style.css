@@ -1,0 +1,27 @@
+* {
+  color: #dddddd;
+}
+
+body {
+  font-family: "Helvetica", "Arial", sans-serif;
+  font-size: 20px;
+  background-color: #222222;
+}
+
+body * {
+  background: none;
+}
+
+button {
+  border-style: solid;
+  border-color: #aaaaaa;
+  border-width: 3px;
+  border-radius: 12px;
+  padding: 5px;
+  font-size: 17px;
+}
+
+#send-req-qr {
+  display: block;
+  margin: 9px 0;
+}

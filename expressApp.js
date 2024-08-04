@@ -1,9 +1,15 @@
 const dns = require("node:dns");
+const path = require("node:path");
 const os = require("node:os");
 const QRCode = require("qrcode");
 var express = require("express");
 var app = express();
 app.use(express.json());
+
+// Set EJS as the view engine
+app.set("view engine", "ejs");
+// Define the directory where your HTML files (views) are located
+app.set("views", path.join(__dirname, "Test-Site-Mobile"));
 
 const PORT = 3000;
 
@@ -26,7 +32,7 @@ const ipcProcess = {
    * @param {string} c Channel
    * @param {function} f Callback function
    */
-  on: function(c, f) {
+  on: function (c, f) {
     this.callbacks[c] = f;
   },
 };
@@ -75,9 +81,10 @@ function getIP() {
   });
 }
 
-app.get("/", function(req, res) {
+app.get("/", function (req, res) {
   getIP().then((result) => {
-    res.send(`Hello world! <BR>Server IP is: ${result} <BR>Port is ${PORT}`);
+    // res.send(`Hello world! <BR>Server IP is: ${result} <BR>Port is ${PORT}`);
+    res.render("index");
   });
 });
 
@@ -86,14 +93,20 @@ app.get("/mobile", (req, res) => {
 });
 
 app.post("/test-message", (req, res) => {
-  res.send("Got POST request: /test-message");
   const content = req.body;
 
   if (content.message) {
-    console.log("Got POST request: /test-message" + content.message);
+    console.log("Got POST request: /test-message " + content.message);
     ipcProcess.send("test-message", content.message);
+    res.status(202).send({ message: "Success" });
   } else {
     console.log("no message!");
+    res
+      .status(418)
+      .send({
+        error: "no-message",
+        message: "Message is blank! Input was not registered",
+      });
   }
   // process.send("message", content);
 });
