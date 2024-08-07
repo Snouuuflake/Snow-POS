@@ -1,0 +1,67 @@
+
+Database Structure
+
+   Items                                               
+   ┌─────────────────────────────────────────────┐    
+   │item_id     integer PRIMARY KEY AUTOINCREMENT│       
+   │item_ref    text    UNIQUE NOT NULL          │                  
+   │item_desc   text                             │                                
+   │item_price  integer NOT NULL                 │                 
+   └─────────────────────────────────────────────┘    
+
+   Acts
+   ┌─────────────────────────────────────────────────────────────┐
+   │act_id           integer PRIMARY KEY AUTOINCREMENT           │
+   │act_type         text    NOT NULL -- "ADD" || "TAKE" || "SET"│
+   │act_item_ref     text    NOT NULL                            │                        
+   │act_qty          integer NOT NULL                            │                          
+   │act_count_id     integer                                     │                                
+   │act_total_after  integer NOT NULL                            │                      
+   │act_overseer_id  integer NOT NULL                            │                               
+   │date             integer NOT NULL                            │                                     
+   └─────────────────────────────────────────────────────────────┘
+
+   Counts                                              
+   ┌─────────────────────────────────────────────────────┐                       
+   │count_id           integer PRIMARY KEY  AUTOINCREMENT│                            
+   │count_item_ref     text    NOT NULL                  │            
+   │count_qty          integer NOT NULL                  │               
+   │count_overseer_id  integer NOT NULL                  │                  
+   │count_date         integer NOT NULL                  │             
+   └─────────────────────────────────────────────────────┘
+                                      
+   Overseers                                                                                 
+   ┌─────────────────────────────────────────────┐
+   │o_id        integer PRIMARY KEY AUTOINCREMENT│
+   │o_username  text UNIQUE                      │          
+   │o_fullname  text                             │          
+   └─────────────────────────────────────────────┘
+
+
+Database Editing and Querrying
+  Items
+    Items may be added or removed, though removing should be strongly
+    discouraged and for practical reasons, probably never done.
+
+    Upon adding, item_ref and item_price should be required, and
+    item_desc should be optional.
+
+    The values item_desc and item_price should be editable with relative
+    ease, but item_ref should never be edited. In such a case, a new 
+    item should be created.
+
+    Foreign key constraints are not going to be enforced at the database
+    level when refering to item_ref; this allows for an item to be
+    removed, with out altering Acts history. Upon querying an item, for
+    any reason, its existence will be validated in Javascript.
+
+  Overseers
+    Overseers will be required to have a unique username, and both
+    should be printed on reports.
+    
+  Acts
+    Acts of type "SET" may be an acceptance of a count, in which case
+    the count ID will be provided. I may add setting from an admin panel,
+    bit for now, admin users may just also generate counts.
+
+
