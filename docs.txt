@@ -10,16 +10,25 @@ Database Structure
    └─────────────────────────────────────────────┘    
 
    Acts
-   ┌─────────────────────────────────────────────────────────────┐
-   │act_id           integer PRIMARY KEY AUTOINCREMENT           │
-   │act_type         text    NOT NULL -- "ADD" || "TAKE" || "SET"│
-   │act_item_ref     text    NOT NULL                            │                        
-   │act_qty          integer NOT NULL                            │                          
-   │act_count_id     integer                                     │                                
-   │act_total_after  integer NOT NULL                            │                      
-   │act_overseer_id  integer NOT NULL                            │                               
-   │date             integer NOT NULL                            │                                     
-   └─────────────────────────────────────────────────────────────┘
+   ┌──────────────────────────────────────────────────────────────────┐
+   │act_id           integer PRIMARY KEY AUTOINCREMENT                │
+   │act_type         text    NOT NULL -- "SALE" || "RETURN" || "COUNT"│
+   │                                  || "ADD"                        │
+   │act_item_ref     text    NOT NULL                                 │                  
+   │act_qty          integer NOT NULL                                 │                     
+   │act_ext_id       integer                                          │                           
+   │act_extra_text   text                                             │                           
+   │act_total_after  integer NOT NULL                                 │                 
+   │act_overseer_id  integer NOT NULL                                 │                          
+   │date             integer NOT NULL                                 │                                
+   └──────────────────────────────────────────────────────────────────┘
+
+   Sales
+   ┌─────────────────────────────────────────────────────┐
+   │sale_id             integer PRIMARY KEY AUTOINCREMENT│
+   │sale_json_inventory text -- (json)                   │
+   │sale_date           integer NOT NULL                 │
+   └─────────────────────────────────────────────────────┘
 
    Counts                                              
    ┌─────────────────────────────────────────────────────┐                       
@@ -53,15 +62,34 @@ Database Editing and Querrying
     Foreign key constraints are not going to be enforced at the database
     level when refering to item_ref; this allows for an item to be
     removed, with out altering Acts history. Upon querying an item, for
-    any reason, its existence will be validated in Javascript.
+    any reason, its existence will be validated in JavaScript.
 
   Overseers
     Overseers will be required to have a unique username, and both
     should be printed on reports.
     
   Acts
-    Acts of type "SET" may be an acceptance of a count, in which case
-    the count ID will be provided. I may add setting from an admin panel,
-    bit for now, admin users may just also generate counts.
+    act_type
+      "SALE"   for sales
+      "RETURN" for returns
+      "COUNT"  overwriting item qty with a count
+      "ADD"    for adding to item qty outside a return
 
+    act_ext_id
+      Foreign key constraints will also not be enforced at the database level,
+      but will be enforced by not allowing deletion of any elements of Counts
+      and Acts.
 
+      This field stores any references to rows on other tables, which can be 
+      different tables depending on act_type. This field points as follows:
+
+        "SALE"   Corresponding sale in Sales
+        "RETURN" Sale ID causing the return
+        "COUNT"  ID of the count it references
+        "ADD"    Null
+        
+  Counts
+    Integrity of Counts
+      Counts must be authorized by an admin user. This prevents theft. This cannot
+      be avoided by an "ADD" act because it would be clearly reported, alongside
+      all acts to an admin.

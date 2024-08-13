@@ -114,6 +114,7 @@ app.post("/test-message", (req, res) => {
 getIP().then((ip) => {
   app.listen(PORT, [ip, "localhost"], () => {
     ipcProcess.send("listening", "listening :)");
+    console.log("ip: " + ip);
   });
 });
 

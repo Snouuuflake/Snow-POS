@@ -18,7 +18,8 @@ function ipcAllWindows(channel, data) {
 /**
  * Makes an express fork process serving expressApp.js
  * Generates callbacks as if it were ipcMain.on(channel, callback(data))
- * @return The created fork with new property ipcCustom
+ * @return { {ipcCustom: { send: function(channel<string>, data<string>): void; callbacks: {channel<string>: callback<function>}; on: function(channel<string>, callback<function>): void; }}}
+ * The created fork with new property ipcCustom
  */
 function loadExpress() {
   // Creates the process
