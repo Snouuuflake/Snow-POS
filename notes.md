@@ -1,3 +1,18 @@
+# Creating the database
+1. Ask for database name, and admin name and password
+   If error, show popup and do nothing
+2. Create if not exists all tables
+   Also if error, show popup and do nothing
+3. Then run the program as normal; 
+   *login screen shows after selecting db name and loading*
+
+
+# Adding items
+
+## Via UI, 1 by 1
+
+## Via CSV
+
 # Operations
 
 ## Sale
@@ -37,8 +52,3 @@
 
 ## Count
 
-# Adding items
-
-## Via UI, 1 by 1
-
-## Via CSV
