@@ -43,8 +43,9 @@ Database Structure
    Overseers
    ┌────────────────────────────────────────────────────┐
    │overseer_id        integer PRIMARY KEY AUTOINCREMENT│
-   │overseer_username  text UNIQUE                      │
-   │overseer_password  text UNIQUE                      │
+   │overseer_username  text UNIQUE NOT NULL             │
+   │overseer_password  text NOT NULL                    │
+   │overseer_is_admin  integer NOT NULL                 │
    └────────────────────────────────────────────────────┘
 
 
@@ -66,8 +67,7 @@ Database Editing and Querrying
     any reason, its existence will be validated in JavaScript.
 
   Overseers
-    Overseers will be required to have a unique username, and both
-    should be printed on reports.
+    Overseers will be required to have a unique username.
 
   Acts
     act_type

@@ -1,0 +1,42 @@
+:root {
+  --br: 10px;
+
+  --bg1: #222831;
+  --hi1: #76ABAE;
+  --li1: #EEEEEE;
+}
+
+* {
+  color: var(--li1);
+  border-color: var(--li1);
+  padding: 0;
+  margin: 0;
+  background: none;
+}
+
+body {
+  font-family: "Helvetica", "Arial", sans-serif;
+  font-size: 18px;
+  background-color: var(--bg1);
+}
+
+button {
+  display: block;
+  border-style: solid;
+  font-size: inherit;
+  padding: 5px 7px;
+  border-radius: var(--br);
+}
+
+.hi-button {
+  border: none;
+  background-color: color-mix(in srgb, var(--hi1), var(--bg1));
+}
+
+.hi-button:hover {
+  background-color: var(--hi1);
+}
+.hi-button:active {
+  background-color: var(--hi1);
+  color: var(--hi1);
+}

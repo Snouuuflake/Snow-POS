@@ -1,0 +1,138 @@
+html {
+  min-height: 100%;
+  /*background: linear-gradient(to bottom, var(--hi1-light), white)*/
+  --scrollbarBG: #cfd8dc;
+  --thumbBG: #90a4ae;
+}
+
+body {
+  height: auto;
+  margin: 5% 10%;
+  padding: 0;
+}
+
+body::-webkit-scrollbar {
+  width: 16px;               /* width of the entire scrollbar */
+}
+body::-webkit-scrollbar-track {
+  background: color-mix(in srgb, var(--bg1), black);
+}
+body::-webkit-scrollbar-thumb {
+  background-color: var(--bg1);    /* color of the scroll thumb */
+  border-radius: 20px;       /* roundness of the scroll thumb */
+  border: 4px solid color-mix(in srgb, var(--bg1), black);  /* creates padding around scroll thumb */
+  height: 50px;
+}
+
+#main-section > * {
+  margin: 20px 0;
+}
+
+#db-table {
+  width: 100%;
+  border-spacing: 0;
+  border-collapse: collapse;
+  border-radius: 20px;
+}
+#db-table tr:nth-child(odd) {
+  background-color: color-mix(in srgb, var(--bg1), var(--hi1) 30%);
+}
+#db-table tr:nth-child(even) {
+  background-color: color-mix(in srgb, var(--bg1), var(--hi1) 60%);
+}
+#db-table tr:hover {
+  background-color: var(--hi1);
+}
+#db-table td {
+  padding: 3px 5px;
+  margin: 0;
+  border: 2px solid color-mix(in srgb, var(--bg1), black 40%);
+}
+
+.container {
+  width: 100%;
+  display: flex;
+  flex-flow: column nowrap;
+  gap: 10px;
+  height: auto;
+  align-items: center;
+}
+
+.container > * {
+  box-sizing: border-box;
+}
+
+#create-DB {
+  font-weight: bold;
+}
+
+.promptBox {
+  width: 300px;
+  height: 150px;
+  position: absolute;
+  margin-left: auto;
+  margin-right: auto;
+  margin-top: auto;
+  margin-bottom: auto;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  /**/
+  border-radius: var(--br);
+  background-color: var(--li1);
+  color: var(--bg1);
+  box-shadow: 10px 10px 45px 4px rgba(0, 0, 0, 0.6);
+  /**/
+  display: flex;
+  flex-direction: column;
+  justify-items: space-between;
+  align-items: center;
+  padding: 20px;
+}
+.promptBox > * {
+  color: var(--bg1);
+}
+.promptHeading {
+  font-size: 20px;
+  width: 100%;
+  padding: 15px 20px;
+  text-align: center;
+}
+.promptInput {
+  box-sizing: border-box;
+  padding: 7px;
+  background-color: var(--c3);
+  width: 100%;
+  height: 25px;
+  background-color: var(--c3);
+  border-radius: var(--br);
+  font-size: 16px;
+}
+.promptButtonContainer {
+  margin-top: 20px;
+  box-sizing: border-box;
+  padding: 0 9px;
+  width: fit-content;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-around;
+  gap: 15px;
+}
+.promptButton {
+  border: none;
+  outline: none;
+  width: 110px;
+  height: 25px;
+  background-color: var(--bg1);
+  color: var(--li1);
+  border-radius: var(--br);
+  font-size: 16px;
+  font-weight: bold;
+}
+.promptButton:hover {
+  background-color: color-mix(in srgb, var(--bg1), var(--hi1));
+}
+.promptButton:active {
+  background-color: var(--hi1);
+}
