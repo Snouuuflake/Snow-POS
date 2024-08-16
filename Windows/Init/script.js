@@ -4,6 +4,8 @@
  * @type {{getDBs: function}}
  */
 
+let uiIsLocked = false;
+
 /**
  * Async version of html alert
  * @param {string} heading
@@ -57,8 +59,11 @@ const createDBButton = document.getElementById("create-DB");
 window.electronAPI.getDBs((data) => {
   for (const name of data.values) {
     const row = dbTable.insertRow(-1);
+    console.log(name);
     row.addEventListener("click", () => {
-      window.electronAPI.openDB(name, handleDBOpen);
+      if (!uiIsLocked) {
+        window.electronAPI.openDB(name, handleDBOpen);
+      }
     });
     const cell = row.insertCell(0);
     cell.innerHTML = name;
@@ -66,5 +71,7 @@ window.electronAPI.getDBs((data) => {
 });
 
 createDBButton.addEventListener("click", () => {
-  window.electronAPI.createDB(handleDBOpen);
+  if (!uiIsLocked) {
+    window.electronAPI.createDB(handleDBOpen);
+  }
 });

@@ -116,10 +116,11 @@ const createInitWindow = () => {
    * If there is an error, res.success = false and
    * res.message = error.message
    */
-  ipcMain.handle("open-DB", (_event, data) => {
+  ipcMain.handle("open-DB", (_event, name) => {
     return new Promise((resolve) => {
       const res = { success: true, message: "" };
-      dbConnect(`${__dirname}/DB/${data.name}.db`).then(
+      console.log(`${__dirname}/DB/${name}.db`);
+      dbConnect(`${__dirname}/DB/${name}.db`).then(
         (db) => {
           // TODO: do we delete this?
           mainDB = db;
