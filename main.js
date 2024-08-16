@@ -4,7 +4,7 @@ const { app, BrowserWindow, ipcMain } = require("electron");
 const path = require("node:path");
 
 const EventEmitter = require("node:events");
-class MyEmitter extends EventEmitter {}
+class MyEmitter extends EventEmitter { }
 
 const { dbConnect } = require(`${__dirname}/sql-test.js`);
 
@@ -51,7 +51,7 @@ function loadExpress() {
      * @param {string} c Channel
      * @param {function} f Callback function
      */
-    on: function (c, f) {
+    on: function(c, f) {
       this.callbacks[c] = f;
     },
   };
@@ -71,7 +71,7 @@ function loadExpress() {
 }
 
 /**
- * @return string[]
+ * @return {string[]} All files in DB/
  */
 function readDBs() {
   return fs.readdirSync(`${__dirname}/DB`, {
@@ -85,6 +85,7 @@ ipcMain.handle("req-DBs", (_event, _data) => {
   return new Promise((resolve) => {
     resolve(
       JSON.stringify({
+        /** @type string[]*/
         values: readDBs().map((fsname) => {
           return path.parse(fsname).name;
         }),
@@ -93,6 +94,10 @@ ipcMain.handle("req-DBs", (_event, _data) => {
   });
 });
 
+/**
+ * Creates the initial window for choosing or creating a database
+ * @return void
+ */
 const createInitWindow = () => {
   const main = new BrowserWindow({
     width: 700,
@@ -103,6 +108,14 @@ const createInitWindow = () => {
   });
   main.loadFile("Windows/Init/index.html");
 
+  /**
+   * An attemt at opening a db is handled by opening it
+   * in the DB folder, and iff no errors, creating the
+   * main window with that db and resolving.
+   *
+   * If there is an error, res.success = false and
+   * res.message = error.message
+   */
   ipcMain.handle("open-DB", (_event, data) => {
     return new Promise((resolve) => {
       const res = { success: true, message: "" };
@@ -126,6 +139,18 @@ const createInitWindow = () => {
     });
   });
 
+  /**
+   * When the user tries to create a db, a new child
+   * modal window is created that asks for db information.
+   * If the db is created but inserting tables causes error,
+   * the db is closed and deleted.
+   *
+   * If everything works, the admin user is inserted.
+   *
+   * The handle creates the window, and also returns a promise that
+   * resolves when the db info from the user is processed via the
+   * ipcMain.once
+   */
   ipcMain.handle("create-DB", (_event, _data) => {
     const newDBWindow = new BrowserWindow({
       width: 300,
@@ -141,7 +166,6 @@ const createInitWindow = () => {
 
     return new Promise((resolve) => {
       const res = { success: true, message: "" };
-      // TODO: set mainDB
       // NOTE: all fields.trim() should be truthy
       //       and password.length >= 8
       ipcMain.once("new-db-data", (_event, data) => {
@@ -159,13 +183,26 @@ const createInitWindow = () => {
 
         dbConnect(`${__dirname}/DB/${parsedData.name}.db`).then(
           (db) => {
-            // TODO: do we delete this?
+            // TODO: do we delete mainDB?
             mainDB = db;
             if (res.success) {
-              const mainWindow = createMainWindow(db);
-              windowList.push(mainWindow);
+              db.run(
+                "INSERT INTO Overseers(overseer_username, overseer_password, overseer_is_admin) Values(?, ?, ?)",
+                [parsedData.username, parsedData.password, true],
+                (err) => {
+                  if (err) {
+                    res.success = false;
+                    res.message = err.message;
+                  } else {
+                    const mainWindow = createMainWindow(db);
+                    windowList.push(mainWindow);
+                  }
+                  resolve(JSON.stringify(res));
+                },
+              );
+            } else {
+              resolve(JSON.stringify(res));
             }
-            resolve(JSON.stringify(res));
           },
           //
           (e) => {
