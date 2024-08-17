@@ -1,5 +1,5 @@
 
-Database Structure
+# Database Structure
 
    Items
    ┌─────────────────────────────────────────────┐
