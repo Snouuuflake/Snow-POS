@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title></title>
+  <link href="../global.css" rel="stylesheet" />
+  <link href="style.css" rel="stylesheet" />
+  <script src="script.js" defer></script>
+</head>
+
+<body>
+  <section class="container" id="main-section">
+    <form id="new-item-form" , action="">
+      <h1>Crea una nueva empresa</h1>
+      <h3>Solamente se admiten letras, "." y números</h3>
+      <h2>Referencia</h2>
+      <input type="text" pattern="[0-9a-zA-Z.]{1,256}" required id="ref" />
+      <h2>Descripción</h2>
+      <input type="text" pattern="[0-9a-zA-Z.]{1,256}" required id="desc" />
+      <h2>Cantidad</h2>
+      <input type="number" min="0" step="1" required id="qty"/>
+      <h2>Precio</h2>
+      <input type="number" required name="price" min="0" value="0" step="0.01" required id="price"/>
+      <button type="submit" class="hi-button" id="submit">Aceptar</button>
+    </form>
+  </section>
+</body>
+
+</html>

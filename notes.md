@@ -1,17 +1,29 @@
 # Creating the database
 
-1. Ask for database name, and admin name and password
-   If error, show popup and do nothing
-2. Create if not exists all tables
-   Also if error, show popup and do nothing
-3. Then run the program as normal; 
-   *login screen shows after selecting db name and loading*
+  1. Ask for database name, and admin name and password
+     If error, show popup and do nothing
+  2. Create if not exists all tables
+     Also if error, show popup and do nothing
+  3. Then run the program as normal; 
+     *login screen shows after selecting db name and loading*
 
 # Adding items
 
 ## Via UI, 1 by 1
+   1. Ask for / validate username
+   2. Ask for:
+        item_id   
+        item_ref  
+        item_desc 
+        item_qty
+        item_price
+   3. Prolly just validate with sql
+   4. Print error or success message
 
 ## Via CSV
+   1. Validate relevant columns exists
+   2. Break if not every row is valid in those columns
+      (check via javascript)
 
 # Operations
 

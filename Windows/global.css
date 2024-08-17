@@ -32,7 +32,6 @@ button {
   border: none;
   background-color: color-mix(in srgb, var(--hi1), var(--bg1));
 }
-
 .hi-button:hover {
   background-color: var(--hi1);
 }
@@ -40,3 +39,18 @@ button {
   background-color: var(--hi1);
   color: var(--hi1);
 }
+
+.li-button {
+  border: none;
+  background-color: var(--li1);
+  color: var(--bg1);
+  font-weight: bold;
+}
+.li-button:hover {
+  background-color: color-mix(in srgb, var(--li1), var(--bg1));
+}
+.li-button:active {
+  background-color: color-mix(in srgb, var(--li1), var(--bg1));
+  color: color-mix(in srgb, var(--li1), var(--bg1));
+}
+

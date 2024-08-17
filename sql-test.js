@@ -111,7 +111,9 @@ async function dbConnect(dbPath) {
   }
   function _dbClose(db) {
     return new Promise((resolve) => {
-      db.close(() => {resolve()});
+      db.close(() => {
+        resolve();
+      });
     });
   }
 
@@ -122,7 +124,7 @@ async function dbConnect(dbPath) {
     await _dbClose(db);
     throw e;
   }
-  return db
+  return db;
 }
 
 // dbConnect("./DB/format-check.db")
@@ -136,4 +138,27 @@ async function dbConnect(dbPath) {
 
 // TODO: db.close on app exit
 
-module.exports = { dbConnect };
+/**
+ * Attempts to add an item, returns a promise that
+ * resolves, or rejects with sql error.
+ *
+ * @param {{ref:string, desc:string, qty:number, price:number}} itemData
+ * @return {Promise<void>}
+ */
+function addItem(itemData) {
+  return new Promise((resolve, reject) => {
+    db.run(
+      "INSERT INTO Items(item_ref, item_desc, item_qty, item_price) Values(?, ?, ?, ?)",
+      [itemData.ref, itemData.desc, itemData.qty, itemData.price],
+      (err) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve();
+        }
+      },
+    );
+  });
+}
+
+module.exports = { dbConnect, addItem };

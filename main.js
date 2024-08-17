@@ -6,7 +6,7 @@ const path = require("node:path");
 const EventEmitter = require("node:events");
 class MyEmitter extends EventEmitter { }
 
-const { dbConnect } = require(`${__dirname}/sql-test.js`);
+const { dbConnect, addItem} = require(`${__dirname}/sql-test.js`);
 
 const windowList = [];
 
@@ -230,12 +230,46 @@ const createMainWindow = (db) => {
     width: 800,
     height: 600,
     webPreferences: {
-      preload: path.join(__dirname, "preload.js"),
+      preload: path.join(__dirname, "./Windows/Main/preload.js"),
     },
   });
 
   windowList.push(win);
-  win.loadFile("Test-Site-Local/index.html");
+  win.loadFile(`${__dirname}/Windows/Main/index.html`);
+
+  ipcMain.on("open-add-item-window", (_event, data) => {
+    console.log("hi");
+    const newItemWindow = new BrowserWindow({
+      width: 300,
+      height: 400,
+      webPreferences: {
+        preload: path.join(__dirname, "./Windows/New-Item/preload.js"),
+      },
+      parent: win,
+      modal: true,
+    });
+    newItemWindow.loadFile(`${__dirname}/Windows/New-Item/index.html`);
+
+    ipcMain.handle("req-add-item", (itemData) => {
+      return new Promise((resolve) => {
+        const res = { success: true, message: "" };
+        addItem(itemData).then(
+          () => {
+            resolve(res);
+          },
+          (e) => {
+            res.success = false;
+            res.message = e.message;
+            resolve(res);
+          },
+        );
+      });
+    });
+
+    newItemWindow.on("closed", () => {
+      ipcMain.removeHandler("req-add-item");
+    });
+  });
 
   const expressFork = loadExpress();
   // sets up emitting an event on every message for some channels
@@ -283,7 +317,13 @@ app.whenReady().then(() => {
 
 app.on("window-all-closed", () => {
   if (mainDB) {
-    mainDB.close();
+    mainDB.close((err) => {
+      if (err) {
+        console.error(err);
+      } else {
+        console.log("Closed DB without error.");
+      }
+    });
   }
   app.quit();
 });

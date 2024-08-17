@@ -1,0 +1,8 @@
+#top-menu-container {
+  width: 400px;
+}
+#top-menu-container>* {
+  width: 100%;
+  margin: 10px 20px;
+}
+
