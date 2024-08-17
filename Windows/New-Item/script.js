@@ -13,26 +13,23 @@ function priceToInt(inputString) {
     }
   }
 
-  return (n * 100) + d;
+  return n * 100 + d;
 }
 
 myForm.addEventListener("submit", (e) => {
   e.preventDefault();
   itemData = {
-    name: document.getElementById("ref").value,
+    ref: document.getElementById("ref").value,
     desc: document.getElementById("desc").value,
     qty: parseInt(document.getElementById("qty").value),
-    price: priceToInt(document.getElementById("price").value)
+    price: priceToInt(document.getElementById("price").value),
   };
 
   console.log(itemData);
 
-
-  // window.electronAPI.addDBItem({
-  //   name: document.getElementById("name").value,
-  //   desc: document.getElementById("desc").value,
-  //   qty: parseInt(document.getElementById("qty").value),
-  //   price: document.getElementById("price").value,
-  // }).then((res) => {});
-  // window.close();
+  window.electronAPI.addDBItem(itemData, (res) => {
+    if (res.success) {
+      myForm.reset();
+    }
+  });
 });

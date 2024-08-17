@@ -1,6 +1,6 @@
 const fs = require("fs");
 const { fork } = require("child_process");
-const { app, BrowserWindow, ipcMain } = require("electron");
+const { app, BrowserWindow, ipcMain, dialog } = require("electron");
 const path = require("node:path");
 
 const EventEmitter = require("node:events");
@@ -250,17 +250,27 @@ const createMainWindow = (db) => {
     });
     newItemWindow.loadFile(`${__dirname}/Windows/New-Item/index.html`);
 
-    ipcMain.handle("req-add-item", (itemData) => {
+    ipcMain.handle("req-add-item", (_event, itemData) => {
+      const parsedData = JSON.parse(itemData);
+      console.log(parsedData);
       return new Promise((resolve) => {
         const res = { success: true, message: "" };
-        addItem(itemData).then(
+        addItem(parsedData).then(
           () => {
             resolve(res);
+            dialog.showMessageBox({
+              message: "Artículo añadido exitosamente",
+              type: "info"
+            });
           },
           (e) => {
             res.success = false;
             res.message = e.message;
             resolve(res);
+            dialog.showMessageBox({
+              message: `Error añadiendo artículo: ${res.message}. Favor de reportar.`,
+              type: "error"
+            });
           },
         );
       });
