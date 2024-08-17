@@ -1,0 +1,1162 @@
+const dns = require("node:dns");
+const path = require("node:path");
+const os = require("node:os");
+const QRCode = require("qrcode");
+var express = require("express");
+var app = express();
+app.use(express.json());
+
+// Set EJS as the view engine
+app.set("view engine", "ejs");
+// Define the directory where your HTML files (views) are located
+app.set("views", path.join(__dirname, "Test-Site-Mobile"));
+
+const PORT = 3000;
+
+// "implementation" of ipcMain for fork process,
+// for syntax's sake
+const ipcProcess = {
+  /**
+   * Sends an ipc message to the main process
+   * Replicates ipcMain.send
+   * @param {string} c channel
+   * @param {string} d data
+   */
+  send: (c, d) => {
+    process.send(JSON.stringify({ channel: c, data: d }));
+  },
+  callbacks: {},
+  /**
+   * Sets up a callback for an ipc message from the main process.
+   * Replicates ipcMain.on, but the callback only takes the argument (data).
+   * @param {string} c Channel
+   * @param {function} f Callback function
+   */
+  on: function (c, f) {
+    this.callbacks[c] = f;
+  },
+};
+
+// setting up ipcProcess.on
+process.on("message", (message) => {
+  const parsedMessage = JSON.parse(message);
+  // iterates through all channels in ipcProcess.callbacks and
+  // runs the corresponding callback(message.data)
+  for (const c of Object.keys(ipcProcess.callbacks)) {
+    if (parsedMessage.channel == c) {
+      ipcProcess.callbacks[c](parsedMessage.data);
+    }
+  }
+});
+
+// FIXME: this is for testing!
+ipcProcess.on("a", (data) => {
+  console.log("Express: " + "a" + " " + data);
+});
+ipcProcess.on("b", (data) => {
+  ipcProcess.on("a", (_data) => console.log("monads"));
+});
+ipcProcess.on("c", (data) => {
+  console.log("Express: " + "c" + " " + data);
+});
+
+function getQRData(url) {
+  return new Promise((resolve1) => {
+    QRCode.toDataURL(url).then((qrCodeImage) => {
+      resolve1(qrCodeImage);
+    });
+  });
+}
+
+function getIP() {
+  return new Promise((resolve1) => {
+    const options = { family: 4 };
+    dns.lookup(os.hostname(), options, (err, addr) => {
+      if (err) {
+        resolve1(`${err}`);
+      } else {
+        resolve1(`${addr}`);
+      }
+    });
+  });
+}
+
+app.get("/", function (req, res) {
+  getIP().then((result) => {
+    // res.send(`Hello world! <BR>Server IP is: ${result} <BR>Port is ${PORT}`);
+    res.render("index");
+  });
+});
+
+app.get("/mobile", (req, res) => {
+  // do nothing
+});
+
+app.post("/test-message", (req, res) => {
+  const content = req.body;
+
+  if (content.message) {
+    console.log("Got POST request: /test-message " + content.message);
+    ipcProcess.send("test-message", content.message);
+    res.status(202).send({ message: "Success" });
+  } else {
+    console.log("no message!");
+    res
+      .status(418)
+      .send({
+        error: "no-message",
+        message: "Message is blank! Input was not registered",
+      });
+  }
+  // process.send("message", content);
+});
+
+getIP().then((ip) => {
+  app.listen(PORT, [ip, "localhost"], () => {
+    ipcProcess.send("listening", "listening :)");
+    console.log("ip: " + ip);
+  });
+});
+
+ipcProcess.on("req-qr", (_data) => {
+  getIP()
+    .then((ip) => {
+      return getQRData("http://" + ip + ":" + PORT);
+    })
+    .then((qrData) => {
+      ipcProcess.send("res-qr", qrData);
+    });
+  // getIP().then((ip) => { console.log(ip) });
+});
+const fs = require("fs");
+const { fork } = require("child_process");
+const { app, BrowserWindow, ipcMain, dialog } = require("electron");
+const path = require("node:path");
+
+const EventEmitter = require("node:events");
+class MyEmitter extends EventEmitter { }
+
+const { dbConnect, addItem} = require(`${__dirname}/sql-test.js`);
+
+const windowList = [];
+
+/** @type {sqlite3.Database} */
+let mainDB = undefined;
+
+function ipcAllWindows(channel, data) {
+  for (const w of windowList) {
+    if (w != null) {
+      w.webContents.send(channel, data);
+    }
+  }
+}
+
+/**
+ * Makes an express fork process serving expressApp.js
+ * Generates callbacks as if it were ipcMain.on(channel, callback(data))
+ * @return { {ipcCustom: { send: function(channel<string>, data<string>): void; callbacks: {channel<string>: callback<function>}; on: function(channel<string>, callback<function>): void; }}}
+ * The created fork with new property ipcCustom
+ */
+function loadExpress() {
+  // Creates the process
+  const expressFork = fork(`${__dirname}/expressApp.js`, [], {
+    cwd: `${__dirname}/`,
+  });
+
+  // sets up ipc with channels
+  expressFork.ipcCustom = {
+    /**
+     * Sends an ipc message to the fork process
+     * Replicates ipcMain.send
+     * @param {string} c Channel
+     * @param {string} d Data
+     */
+    send: (c, d) => {
+      expressFork.send(JSON.stringify({ channel: c, data: d }));
+    },
+    callbacks: {},
+    /**
+     * Sets up a callback for an ipc message from the fork process
+     * Replicates ipcMain.on, but the callback only takes the argument (data).
+     * @param {string} c Channel
+     * @param {function} f Callback function
+     */
+    on: function(c, f) {
+      this.callbacks[c] = f;
+    },
+  };
+
+  expressFork.on("message", (message) => {
+    // expects a json message - {"channel", "message"}
+    const parsedMessage = JSON.parse(message);
+    // iterates through all channels in @param callbacks and
+    // runs the corresponding callback(message.data)
+    for (const key of Object.keys(expressFork.ipcCustom.callbacks)) {
+      if (parsedMessage.channel == key) {
+        expressFork.ipcCustom.callbacks[key](parsedMessage.data);
+      }
+    }
+  });
+  return expressFork;
+}
+
+/**
+ * @return {string[]} All files in DB/
+ */
+function readDBs() {
+  return fs.readdirSync(`${__dirname}/DB`, {
+    withFileTypes: false,
+    recursive: false,
+  });
+}
+
+/** @section ipcs */
+ipcMain.handle("req-DBs", (_event, _data) => {
+  return new Promise((resolve) => {
+    resolve(
+      JSON.stringify({
+        /** @type string[]*/
+        values: readDBs().map((fsname) => {
+          return path.parse(fsname).name;
+        }),
+      }),
+    );
+  });
+});
+
+/**
+ * Creates the initial window for choosing or creating a database
+ * @return void
+ */
+const createInitWindow = () => {
+  const main = new BrowserWindow({
+    width: 700,
+    height: 500,
+    webPreferences: {
+      preload: path.join(__dirname, "./Windows/Init/preload.js"),
+    },
+  });
+  main.loadFile("Windows/Init/index.html");
+
+  /**
+   * An attemt at opening a db is handled by opening it
+   * in the DB folder, and iff no errors, creating the
+   * main window with that db and resolving.
+   *
+   * If there is an error, res.success = false and
+   * res.message = error.message
+   */
+  ipcMain.handle("open-DB", (_event, name) => {
+    return new Promise((resolve) => {
+      const res = { success: true, message: "" };
+      console.log(`${__dirname}/DB/${name}.db`);
+      dbConnect(`${__dirname}/DB/${name}.db`).then(
+        (db) => {
+          // TODO: do we delete this?
+          mainDB = db;
+          if (res.success) {
+            const mainWindow = createMainWindow(db);
+            windowList.push(mainWindow);
+          }
+          resolve(JSON.stringify(res));
+        },
+        //
+        (e) => {
+          res.success = false;
+          res.message = e.message;
+          resolve(JSON.stringify(res));
+        },
+      );
+    });
+  });
+
+  /**
+   * When the user tries to create a db, a new child
+   * modal window is created that asks for db information.
+   * If the db is created but inserting tables causes error,
+   * the db is closed and deleted.
+   *
+   * If everything works, the admin user is inserted.
+   *
+   * The handle creates the window, and also returns a promise that
+   * resolves when the db info from the user is processed via the
+   * ipcMain.once
+   */
+  ipcMain.handle("create-DB", (_event, _data) => {
+    const newDBWindow = new BrowserWindow({
+      width: 300,
+      height: 400,
+      webPreferences: {
+        preload: path.join(__dirname, "./Windows/New-DB/preload.js"),
+      },
+      parent: main,
+      modal: true,
+    });
+
+    newDBWindow.loadFile("Windows/New-DB/index.html");
+
+    return new Promise((resolve) => {
+      const res = { success: true, message: "" };
+      // NOTE: all fields.trim() should be truthy
+      //       and password.length >= 8
+      ipcMain.once("new-db-data", (_event, data) => {
+        console.log("got data", data);
+        /**
+         * @type {{name:string, username: string, password: string}}
+         * (credentials are for db admin)
+         */
+        const parsedData = JSON.parse(data);
+        // Validating data
+        if (readDBs().includes(`${parsedData.name}.db`)) {
+          res.success = false;
+          res.message = "Empresa ya existe";
+        }
+
+        dbConnect(`${__dirname}/DB/${parsedData.name}.db`).then(
+          (db) => {
+            // TODO: do we delete mainDB?
+            mainDB = db;
+            if (res.success) {
+              db.run(
+                "INSERT INTO Overseers(overseer_username, overseer_password, overseer_is_admin) Values(?, ?, ?)",
+                [parsedData.username, parsedData.password, true],
+                (err) => {
+                  if (err) {
+                    res.success = false;
+                    res.message = err.message;
+                  } else {
+                    const mainWindow = createMainWindow(db);
+                    windowList.push(mainWindow);
+                  }
+                  resolve(JSON.stringify(res));
+                },
+              );
+            } else {
+              resolve(JSON.stringify(res));
+            }
+          },
+          //
+          (e) => {
+            res.success = false;
+            res.message = e.message;
+            fs.unlink(`${__dirname}/DB/${parsedData.name}.db`, (fserr) => {
+              if (fserr) {
+                console.log("fs error:", fserr.message);
+              } else {
+                console.log("Deleted", parsedData.name);
+              }
+            });
+
+            resolve(JSON.stringify(res));
+          },
+        );
+      });
+    });
+  });
+};
+
+const createMainWindow = (db) => {
+  const win = new BrowserWindow({
+    width: 800,
+    height: 600,
+    webPreferences: {
+      preload: path.join(__dirname, "./Windows/Main/preload.js"),
+    },
+  });
+
+  windowList.push(win);
+  win.loadFile(`${__dirname}/Windows/Main/index.html`);
+
+  ipcMain.on("open-add-item-window", (_event, data) => {
+    console.log("hi");
+    const newItemWindow = new BrowserWindow({
+      width: 300,
+      height: 400,
+      webPreferences: {
+        preload: path.join(__dirname, "./Windows/New-Item/preload.js"),
+      },
+      parent: win,
+      modal: true,
+    });
+    newItemWindow.loadFile(`${__dirname}/Windows/New-Item/index.html`);
+
+    ipcMain.handle("req-add-item", (_event, itemData) => {
+      const parsedData = JSON.parse(itemData);
+      console.log(parsedData);
+      return new Promise((resolve) => {
+        const res = { success: true, message: "" };
+        addItem(parsedData).then(
+          () => {
+            resolve(res);
+            dialog.showMessageBox({
+              message: "Artículo añadido exitosamente",
+              type: "info"
+            });
+          },
+          (e) => {
+            res.success = false;
+            res.message = e.message;
+            resolve(res);
+            dialog.showMessageBox({
+              message: `Error añadiendo artículo: ${res.message}. Favor de reportar.`,
+              type: "error"
+            });
+          },
+        );
+      });
+    });
+
+    newItemWindow.on("closed", () => {
+      ipcMain.removeHandler("req-add-item");
+    });
+  });
+
+  const expressFork = loadExpress();
+  // sets up emitting an event on every message for some channels
+  const expressForkEmitter = new MyEmitter();
+
+  // emits "new-qr" on every "res-qr" recieved
+  expressFork.ipcCustom.on("res-qr", (data) => {
+    console.log("emitting new-qr");
+    expressForkEmitter.emit("new-qr", data);
+  });
+
+  // relays any test messages from express
+  expressFork.ipcCustom.on("test-message", (data) => {
+    ipcAllWindows("test-message", data);
+    console.log("Main test-message: ", data);
+  });
+
+  // all on's that arent "listening" should probably be
+  // declared first.
+  expressFork.ipcCustom.on("listening", (data) => {
+    console.log(data);
+
+    // handle for ipcMain "req-qr" that sets up an event listener
+    // from experss for the next qr code response that resolves
+    // the handle with it, and then asks for a qr
+    ipcMain.handle("req-qr", (_event, _data) => {
+      return new Promise((resolve) => {
+        expressForkEmitter.addListener(
+          "new-qr",
+          (response) => {
+            console.log(response);
+            resolve(response);
+          },
+          { once: true },
+        );
+        expressFork.ipcCustom.send("req-qr", "requesting qr!");
+      });
+    });
+  });
+};
+
+app.whenReady().then(() => {
+  createInitWindow();
+});
+
+app.on("window-all-closed", () => {
+  if (mainDB) {
+    mainDB.close((err) => {
+      if (err) {
+        console.error(err);
+      } else {
+        console.log("Closed DB without error.");
+      }
+    });
+  }
+  app.quit();
+});
+const { contextBridge, ipcRenderer } = require("electron");
+
+contextBridge.exposeInMainWorld("electronAPI", {
+  onTestMessage: (callback) =>
+    ipcRenderer.on("test-message", (_event, value) => callback(value)),
+  invokeQR: () => ipcRenderer.invoke("req-qr"),
+});
+const sqlite3 = require("sqlite3").verbose();
+
+/**
+ * @param {sqlite3.Database} db
+ */
+function createTables(db) {
+  // CREATE TABLE IF NOT EXISTS [schema_name].table_name (
+  // 	column_1 data_type PRIMARY KEY,
+  // 	column_2 data_type NOT NULL,
+  // 	column_3 data_type DEFAULT 0,
+  // 	table_constraints
+  // ) [WITHOUT ROWID];
+
+  let tablesCreated = 0;
+  return new Promise((resolve, reject) => {
+    db.run(
+      `CREATE TABLE IF NOT EXISTS Items (
+    item_id integer PRIMARY KEY AUTOINCREMENT,
+    item_ref text UNIQUE NOT NULL,
+    item_desc text,
+    item_qty integer NOT NULL,
+    item_price integer NOT NULL
+    );`,
+      (err) => {
+        if (err) {
+          reject(err);
+        }
+      },
+    );
+
+    db.run(
+      `CREATE TABLE IF NOT EXISTS Acts (
+    act_id integer PRIMARY KEY AUTOINCREMENT,
+    act_type text NOT NULL,
+    act_item_ref text NOT NULL,
+    act_qty integer NOT NULL,
+    act_ext_id integer,
+    act_extra_text text,
+    act_total_after integer NOT NULL,
+    act_overseer_id integer NOT NULL,
+    act_date integer NOT NULL
+    );`,
+      (err) => {
+        if (err) {
+          reject(err);
+        }
+      },
+    );
+
+    db.run(
+      `CREATE TABLE IF NOT EXISTS Sales (
+    sale_id integer PRIMARY KEY AUTOINCREMENT,
+    sale_json_inventory text,
+    sale_date integer NOT NULL
+    );`,
+      (err) => {
+        if (err) {
+          reject(err);
+        }
+      },
+    );
+
+    db.run(
+      `CREATE TABLE IF NOT EXISTS Counts (
+    count_id integer PRIMARY KEY AUTOINCREMENT,
+    count_item_ref text NOT NULL,
+    count_qty
+    );`,
+      (err) => {
+        if (err) {
+          reject(err);
+        }
+      },
+    );
+
+    db.run(
+      `CREATE TABLE IF NOT EXISTS Overseers (
+    overseer_id integer PRIMARY KEY AUTOINCREMENT,
+    overseer_username text UNIQUE NOT NULL,
+    overseer_password text NOT NULL,
+    overseer_is_admin integer NOT NULL
+    );`,
+      (err) => {
+        if (err) {
+          reject(err);
+        }
+      },
+    );
+    db.run("", (_err) => {
+      resolve();
+    });
+  });
+}
+
+/**
+ * Tries to open a database
+ * @param {string} dbPath The path to the database to open
+ * @return {{db: sqlite3.Database, error: (string|undefined)}} If no error, error is undefined
+ */
+async function dbConnect(dbPath) {
+  function _dbOpen(dbPath) {
+    return new Promise((resolve, reject) => {
+      const db = new sqlite3.Database(dbPath, (err) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(db);
+        }
+      });
+    });
+  }
+  function _dbClose(db) {
+    return new Promise((resolve) => {
+      db.close(() => {
+        resolve();
+      });
+    });
+  }
+
+  db = await _dbOpen(dbPath);
+  try {
+    await createTables(db);
+  } catch (e) {
+    await _dbClose(db);
+    throw e;
+  }
+  return db;
+}
+
+// dbConnect("./DB/format-check.db")
+//   .catch((e) => {
+//     console.log("Caught:", e.message);
+//   })
+//   .then((db) => {
+//     console.log("Success!");
+//     console.log(db);
+//   });
+
+// TODO: db.close on app exit
+
+/**
+ * Attempts to add an item, returns a promise that
+ * resolves, or rejects with sql error.
+ *
+ * @param {{ref:string, desc:string, qty:number, price:number}} itemData
+ * @return {Promise<void>}
+ */
+function addItem(itemData) {
+  return new Promise((resolve, reject) => {
+    db.run(
+      "INSERT INTO Items(item_ref, item_desc, item_qty, item_price) Values(?, ?, ?, ?)",
+      [itemData.ref, itemData.desc, itemData.qty, itemData.price],
+      (err) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve();
+        }
+      },
+    );
+  });
+}
+
+module.exports = { dbConnect, addItem };
+const { contextBridge, ipcRenderer } = require("electron");
+
+contextBridge.exposeInMainWorld("electronAPI", {
+  /** @type function(function({values: string[]}):void):void*/
+  getDBs: (callback) => {
+    ipcRenderer.invoke("req-DBs").then((data) => {
+      callback(JSON.parse(data))
+    });
+  },
+  /** @type function(function(boolean, string):void):void*/
+  createDB: (callback) => {
+    ipcRenderer.invoke("create-DB").then((data) => {
+      const parsedData = JSON.parse(data);
+      callback(parsedData.success, parsedData.message);
+    });
+  },
+  openDB: (name, callback) => {
+    ipcRenderer.invoke("open-DB", name).then((data) => {
+      const parsedData = JSON.parse(data);
+      callback(parsedData.success, parsedData.message);
+    });
+  }
+});
+
+/**
+ * @name electronAPI
+ * @memberof globalThis
+ * @type {{getDBs: function}}
+ */
+
+let uiIsLocked = false;
+
+/**
+ * Async version of html alert
+ * @param {string} heading
+ * @returns {Promise<undefined>}
+ * Not like it really matters i think
+ */
+async function alert2(heading) {
+  uiIsLocked = true;
+  const promptBox = document.createElement("div");
+  promptBox.classList.add("promptBox");
+
+  const promptHeading = document.createElement("h1");
+  promptHeading.classList.add("promptHeading");
+  promptHeading.innerHTML = heading;
+
+  const promptButtonContainer = document.createElement("div");
+  promptButtonContainer.classList.add("promptButtonContainer");
+
+  const okButton = document.createElement("button");
+  okButton.classList.add("promptButton");
+  okButton.innerText = "Ok";
+
+  promptBox.appendChild(promptHeading);
+  promptButtonContainer.appendChild(okButton);
+  promptBox.appendChild(promptButtonContainer);
+
+  document.body.appendChild(promptBox);
+
+  return new Promise((resolve) => {
+    okButton.addEventListener("click", (event) => {
+      uiIsLocked = false;
+      promptBox.remove();
+      resolve(true);
+    });
+  });
+}
+
+const handleDBOpen = (success, message) => {
+  if (success) {
+    alert2("Base de datos se abrió con éxito!").then((_r) => {
+      window.close();
+    });
+  } else {
+    alert2(`Error: ${message}.\nFavor de reportar.`);
+  }
+};
+
+const dbTable = document.getElementById("db-table");
+const createDBButton = document.getElementById("create-DB");
+
+window.electronAPI.getDBs((data) => {
+  for (const name of data.values) {
+    const row = dbTable.insertRow(-1);
+    console.log(name);
+    row.addEventListener("click", () => {
+      if (!uiIsLocked) {
+        window.electronAPI.openDB(name, handleDBOpen);
+      }
+    });
+    const cell = row.insertCell(0);
+    cell.innerHTML = name;
+  }
+});
+
+createDBButton.addEventListener("click", () => {
+  if (!uiIsLocked) {
+    window.electronAPI.createDB(handleDBOpen);
+  }
+});
+const { contextBridge, ipcRenderer } = require("electron");
+
+contextBridge.exposeInMainWorld("electronAPI", {
+  openAddItemWindow: () => {
+    ipcRenderer.send("open-add-item-window", " ");
+  }
+});
+
+
+const addItemButton = document.getElementById("add-item");
+
+addItemButton.addEventListener("click", () => {
+  window.electronAPI.openAddItemWindow();
+});
+const { contextBridge, ipcRenderer } = require("electron");
+
+contextBridge.exposeInMainWorld("electronAPI", {
+  /** @type function(function({values: string[]}):void):void*/
+  submitDB: (obj) => {
+    ipcRenderer.send("new-db-data", JSON.stringify(obj));
+  }
+  
+});
+
+
+const myForm = document.getElementById("new-db-form");
+
+myForm.addEventListener("submit", (e) => {
+  e.preventDefault();
+  window.electronAPI.submitDB({
+    name: document.getElementById("name").value,
+    username: document.getElementById("username").value,
+    password: document.getElementById("password").value
+  });
+  window.close();
+});
+const { contextBridge, ipcRenderer } = require("electron");
+
+contextBridge.exposeInMainWorld("electronAPI", {
+  /**
+   * @param {{ref:string, desc:string, qty:number, price:number}} itemData
+   * @param {function({success:boolean, message:string})} callback
+   */
+  addDBItem: (itemData, callback) => {
+    ipcRenderer.invoke("req-add-item", JSON.stringify(itemData)).then((res) => {
+      callback(res);
+    });
+  },
+});
+const myForm = document.getElementById("new-item-form");
+
+function priceToInt(inputString) {
+  const splitString = inputString.split(".");
+  const n = parseInt(splitString[0]);
+  let d = 0;
+
+  if (splitString[1]) {
+    if (splitString[1].length == 1) {
+      d = parseInt(splitString[1]) * 10;
+    } else {
+      d = parseInt(splitString[1]);
+    }
+  }
+
+  return n * 100 + d;
+}
+
+myForm.addEventListener("submit", (e) => {
+  e.preventDefault();
+  itemData = {
+    ref: document.getElementById("ref").value,
+    desc: document.getElementById("desc").value,
+    qty: parseInt(document.getElementById("qty").value),
+    price: priceToInt(document.getElementById("price").value),
+  };
+
+  console.log(itemData);
+
+  window.electronAPI.addDBItem(itemData, (res) => {
+    if (res.success) {
+      myForm.reset();
+    }
+  });
+});
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title></title>
+  <link href="../global.css" rel="stylesheet" />
+  <link href="style.css" rel="stylesheet" />
+  <script src="script.js" defer></script>
+</head>
+
+<body>
+  <section id="main-section">
+    <h1>Seleciona una empresa</h1>
+    <div class="container">
+      <table id="db-table"></table>
+    </div>
+    <button type="button" class="hi-button" id="create-DB">O crea una</button>
+  </section>
+</body>
+
+</html>
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title></title>
+  <link href="../global.css" rel="stylesheet" />
+  <link href="style.css" rel="stylesheet" />
+  <script src="script.js" defer></script>
+</head>
+
+<body>
+  <section id="top-menu-container" class="container">
+    <button type="button" class="li-button" id="add-item">Crear Artículo</button>
+    <button type="button" class="li-button">Importar Artículos (csv)</button>
+  </section>
+</body>
+
+</html>
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title></title>
+  <link href="../global.css" rel="stylesheet" />
+  <link href="style.css" rel="stylesheet" />
+  <script src="script.js" defer></script>
+</head>
+
+<body>
+  <section class="container" id="main-section">
+    <form id="new-db-form" , action="">
+      <h1>Crea una nueva empresa</h1>
+      <h3>Solamente se admiten letras y números</h3>
+      <h2>Nombre de la empresa</h2>
+      <input type="text" pattern="[0-9a-zA-Z]{1,256}" required id="name" />
+      <h2>Nombre del administrador</h2>
+      <input type="text" pattern="[0-9a-zA-Z]{1,256}" required id="username" />
+      <h2>Nombre constraseña del administrador</h2>
+      <input type="password" pattern="[0-9a-zA-Z]{8,256}" required id="password" />
+      <button type="submit" class="hi-button" id="submit">Aceptar</button>
+    </form>
+  </section>
+</body>
+
+</html>
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title></title>
+  <link href="../global.css" rel="stylesheet" />
+  <link href="style.css" rel="stylesheet" />
+  <script src="script.js" defer></script>
+</head>
+
+<body>
+  <section class="container" id="main-section">
+    <form id="new-item-form" , action="">
+      <h1>Crea una nueva empresa</h1>
+      <h3>Solamente se admiten letras, "." y números</h3>
+      <h2>Referencia</h2>
+      <input type="text" pattern="[0-9a-zA-Z.]{1,256}" required id="ref" />
+      <h2>Descripción</h2>
+      <input type="text" pattern=".{1,256}" required id="desc" />
+      <h2>Cantidad</h2>
+      <input type="number" min="0" step="1" required id="qty"/>
+      <h2>Precio</h2>
+      <input type="number" required name="price" min="0" value="0" step="0.01" required id="price"/>
+      <button type="submit" class="hi-button" id="submit">Aceptar</button>
+    </form>
+  </section>
+</body>
+
+</html>
+:root {
+  --br: 10px;
+
+  --bg1: #222831;
+  --hi1: #76ABAE;
+  --li1: #EEEEEE;
+}
+
+* {
+  color: var(--li1);
+  border-color: var(--li1);
+  padding: 0;
+  margin: 0;
+  background: none;
+}
+
+body {
+  font-family: "Helvetica", "Arial", sans-serif;
+  font-size: 18px;
+  background-color: var(--bg1);
+}
+
+button {
+  display: block;
+  border-style: solid;
+  font-size: inherit;
+  padding: 5px 7px;
+  border-radius: var(--br);
+}
+
+.hi-button {
+  border: none;
+  background-color: color-mix(in srgb, var(--hi1), var(--bg1));
+}
+.hi-button:hover {
+  background-color: var(--hi1);
+}
+.hi-button:active {
+  background-color: var(--hi1);
+  color: var(--hi1);
+}
+
+.li-button {
+  border: none;
+  background-color: var(--li1);
+  color: var(--bg1);
+  font-weight: bold;
+}
+.li-button:hover {
+  background-color: color-mix(in srgb, var(--li1), var(--bg1));
+}
+.li-button:active {
+  background-color: color-mix(in srgb, var(--li1), var(--bg1));
+  color: color-mix(in srgb, var(--li1), var(--bg1));
+}
+
+html {
+  min-height: 100%;
+  /*background: linear-gradient(to bottom, var(--hi1-light), white)*/
+  --scrollbarBG: #cfd8dc;
+  --thumbBG: #90a4ae;
+}
+
+body {
+  height: auto;
+  margin: 5% 10%;
+  padding: 0;
+}
+
+body::-webkit-scrollbar {
+  width: 16px;               /* width of the entire scrollbar */
+}
+body::-webkit-scrollbar-track {
+  background: color-mix(in srgb, var(--bg1), black);
+}
+body::-webkit-scrollbar-thumb {
+  background-color: var(--bg1);    /* color of the scroll thumb */
+  border-radius: 20px;       /* roundness of the scroll thumb */
+  border: 4px solid color-mix(in srgb, var(--bg1), black);  /* creates padding around scroll thumb */
+  height: 50px;
+}
+
+#main-section > * {
+  margin: 20px 0;
+}
+
+#db-table {
+  width: 100%;
+  border-spacing: 0;
+  border-collapse: collapse;
+  border-radius: 20px;
+}
+#db-table tr:nth-child(odd) {
+  background-color: color-mix(in srgb, var(--bg1), var(--hi1) 30%);
+}
+#db-table tr:nth-child(even) {
+  background-color: color-mix(in srgb, var(--bg1), var(--hi1) 60%);
+}
+#db-table tr:hover {
+  background-color: var(--hi1);
+}
+#db-table td {
+  padding: 3px 5px;
+  margin: 0;
+  border: 2px solid color-mix(in srgb, var(--bg1), black 40%);
+}
+
+.container {
+  width: 100%;
+  display: flex;
+  flex-flow: column nowrap;
+  gap: 10px;
+  height: auto;
+  align-items: center;
+}
+
+.container > * {
+  box-sizing: border-box;
+}
+
+#create-DB {
+  font-weight: bold;
+}
+
+.promptBox {
+  width: 300px;
+  height: 150px;
+  position: absolute;
+  margin-left: auto;
+  margin-right: auto;
+  margin-top: auto;
+  margin-bottom: auto;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  /**/
+  border-radius: var(--br);
+  background-color: var(--li1);
+  color: var(--bg1);
+  box-shadow: 10px 10px 45px 4px rgba(0, 0, 0, 0.6);
+  /**/
+  display: flex;
+  flex-direction: column;
+  justify-items: space-between;
+  align-items: center;
+  padding: 20px;
+}
+.promptBox > * {
+  color: var(--bg1);
+}
+.promptHeading {
+  font-size: 20px;
+  width: 100%;
+  padding: 15px 20px;
+  text-align: center;
+}
+.promptInput {
+  box-sizing: border-box;
+  padding: 7px;
+  background-color: var(--c3);
+  width: 100%;
+  height: 25px;
+  background-color: var(--c3);
+  border-radius: var(--br);
+  font-size: 16px;
+}
+.promptButtonContainer {
+  margin-top: 20px;
+  box-sizing: border-box;
+  padding: 0 9px;
+  width: fit-content;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-around;
+  gap: 15px;
+}
+.promptButton {
+  border: none;
+  outline: none;
+  width: 110px;
+  height: 25px;
+  background-color: var(--bg1);
+  color: var(--li1);
+  border-radius: var(--br);
+  font-size: 16px;
+  font-weight: bold;
+}
+.promptButton:hover {
+  background-color: color-mix(in srgb, var(--bg1), var(--hi1));
+}
+.promptButton:active {
+  background-color: var(--hi1);
+}
+#top-menu-container {
+  width: 400px;
+}
+#top-menu-container>* {
+  width: 100%;
+  margin: 10px 20px;
+}
+
+h1 {
+  font-size: 18px;
+}
+
+h2 {
+  font-size: 12px;
+}
+
+h3 {
+  font-size: 10px;
+  color: grey;
+}
+{
+  "name": "snow-pos",
+  "version": "0.1.0",
+  "description": "Simple point of sale app with phone conectivity",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "author": "snouuuflake",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^31.3.1"
+  },
+  "dependencies": {
+    "ejs": "^3.1.10",
+    "express": "^4.19.2",
+    "qrcode": "^1.5.3",
+    "sqlite3": "^5.1.7"
+  }
+}
