@@ -7,6 +7,15 @@
   3. Then run the program as normal; 
      *login screen shows after selecting db name and loading*
 
+# Admin panel
+  - Requires admin user login
+  - ^verified via sql
+## Adding users
+   1. Window opens
+   2. Confirmed or denied via sql :thumbsup:
+
+## Disablint items
+
 # Adding items
 
 ## Via UI, 1 by 1
