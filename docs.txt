@@ -20,7 +20,7 @@
    │act_ext_id       integer                                          │
    │act_extra_text   text                                             │
    │act_total_after  integer NOT NULL                                 │
-   │act_overseer_id  integer NOT NULL                                 │
+   │act_user_id  integer NOT NULL                                     │
    │date             integer NOT NULL                                 │
    └──────────────────────────────────────────────────────────────────┘
 
@@ -36,16 +36,16 @@
    │count_id           integer PRIMARY KEY  AUTOINCREMENT│
    │count_item_ref     text    NOT NULL                  │
    │count_qty          integer NOT NULL                  │
-   │count_overseer_id  integer NOT NULL                  │
+   │count_user_id  integer NOT NULL                      │
    │count_date         integer NOT NULL                  │
    └─────────────────────────────────────────────────────┘
 
-   Overseers
+   Users
    ┌────────────────────────────────────────────────────┐
-   │overseer_id        integer PRIMARY KEY AUTOINCREMENT│
-   │overseer_username  text UNIQUE NOT NULL             │
-   │overseer_password  text NOT NULL                    │
-   │overseer_is_admin  integer NOT NULL                 │
+   │user_id        integer PRIMARY KEY AUTOINCREMENT    │
+   │user_username  text UNIQUE NOT NULL                 │
+   │user_password  text NOT NULL                        │
+   │user_is_admin  integer NOT NULL                     │
    └────────────────────────────────────────────────────┘
 
 

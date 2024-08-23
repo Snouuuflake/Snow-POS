@@ -6,7 +6,7 @@ const path = require("node:path");
 const EventEmitter = require("node:events");
 class MyEmitter extends EventEmitter { }
 
-const { dbConnect, addItem} = require(`${__dirname}/sql-test.js`);
+const { dbConnect, addItem } = require(`${__dirname}/sql-test.js`);
 
 const windowList = [];
 
@@ -188,12 +188,22 @@ const createInitWindow = () => {
             mainDB = db;
             if (res.success) {
               db.run(
-                "INSERT INTO Overseers(overseer_username, overseer_password, overseer_is_admin) Values(?, ?, ?)",
+                "INSERT INTO Users(user_username, user_password, user_is_admin) Values(?, ?, ?)",
                 [parsedData.username, parsedData.password, true],
                 (err) => {
                   if (err) {
                     res.success = false;
                     res.message = err.message;
+                    fs.unlink(
+                      `${__dirname}/DB/${parsedData.name}.db`,
+                      (fserr) => {
+                        if (fserr) {
+                          console.log("fs error:", fserr.message);
+                        } else {
+                          console.log("Deleted", parsedData.name);
+                        }
+                      },
+                    );
                   } else {
                     const mainWindow = createMainWindow(db);
                     windowList.push(mainWindow);
@@ -237,6 +247,119 @@ const createMainWindow = (db) => {
   windowList.push(win);
   win.loadFile(`${__dirname}/Windows/Main/index.html`);
 
+  /**
+   * @window cred
+   */
+  const getCred = () => {
+    const credWindow = new BrowserWindow({
+      width: 700,
+      height: 500,
+      webPreferences: {
+        preload: path.join(__dirname, "./Windows/Cred/preload.js"),
+      },
+      parent: win,
+      modal: true,
+    });
+    credWindow.loadFile("Windows/Cred/index.html");
+    return new Promise((resolve) => {
+      ipcMain.once("cred", (_event, data) => {
+        const parsedData = JSON.parse(data);
+        credWindow.close();
+        resolve(parsedData);
+      });
+    });
+  };
+
+  /*
+   *  @window Admin
+   */
+
+  ipcMain.on("open-admin-window", (_event, _data) => {
+    getCred().then((credData) => {
+      const sql = `SELECT user_username, user_password, user_is_admin FROM Users`;
+      let validatee = false;
+      db.all(sql, [], (err, rows) => {
+        if (err) {
+          dialog.showMessageBox({
+            message: `Error validando usuario: ${err.message}.`,
+            type: "error",
+          });
+        } else {
+          rows.forEach((item) => {
+            if (
+              item.user_username === credData.username &&
+              item.user_password === credData.password &&
+              item.user_is_admin == 1
+            ) {
+              validatee = true;
+            }
+          });
+
+          if (validatee) {
+            console.log("opening admin window...");
+            const adminWindow = new BrowserWindow({
+              width: 500,
+              height: 450,
+              webPreferences: {
+                preload: path.join(__dirname, "./Windows/Admin/preload.js"),
+              },
+              parent: win,
+              modal: true,
+            });
+            adminWindow.loadFile(`${__dirname}/Windows/Admin/index.html`);
+          } else {
+            dialog.showMessageBox({
+              message: `Credenciales no son válidas.`,
+              type: "error",
+            });
+          }
+        }
+      });
+    });
+  });
+
+  ipcMain.handle("req-new-user", (_event, userData) => {
+    /** @type {username: string, password1: string, password2: string, isadmin: boolean} */
+    const parsedData = JSON.parse(userData);
+    console.log(parsedData);
+    return new Promise((resolve) => {
+      const res = { success: true, message: "" };
+
+      if (parsedData.password1 === parsedData.password2) {
+        res.success = false;
+        res.message = "Las contraseñas no coinciden.";
+        resolve(res);
+        dialog.showMessageBox({
+          message: `Error añadiendo usuario: ${res.message}.`,
+          type: "error",
+        });
+      } else {
+        addUser(parsedData).then(
+          () => {
+            resolve(res);
+            dialog.showMessageBox({
+              message: "Usuario añadido existosamente.",
+              type: "info",
+            });
+          },
+          (e) => {
+            res.success = false;
+            res.message = e.message;
+            resolve(res);
+            dialog.showMessageBox({
+              message: `Error añadiendo usuario: ${res.message}.`,
+              type: "error",
+            });
+          },
+        );
+      }
+    });
+  });
+
+  /*
+   *  @window Add Item
+   */
+
   ipcMain.on("open-add-item-window", (_event, data) => {
     console.log("hi");
     const newItemWindow = new BrowserWindow({
@@ -250,34 +373,34 @@ const createMainWindow = (db) => {
     });
     newItemWindow.loadFile(`${__dirname}/Windows/New-Item/index.html`);
 
-    ipcMain.handle("req-add-item", (_event, itemData) => {
-      const parsedData = JSON.parse(itemData);
-      console.log(parsedData);
-      return new Promise((resolve) => {
-        const res = { success: true, message: "" };
-        addItem(parsedData).then(
-          () => {
-            resolve(res);
-            dialog.showMessageBox({
-              message: "Artículo añadido exitosamente",
-              type: "info"
-            });
-          },
-          (e) => {
-            res.success = false;
-            res.message = e.message;
-            resolve(res);
-            dialog.showMessageBox({
-              message: `Error añadiendo artículo: ${res.message}. Favor de reportar.`,
-              type: "error"
-            });
-          },
-        );
-      });
-    });
-
     newItemWindow.on("closed", () => {
       ipcMain.removeHandler("req-add-item");
+    });
+  });
+  // ^
+  ipcMain.handle("req-add-item", (_event, itemData) => {
+    const parsedData = JSON.parse(itemData);
+    console.log(parsedData);
+    return new Promise((resolve) => {
+      const res = { success: true, message: "" };
+      addItem(parsedData).then(
+        () => {
+          resolve(res);
+          dialog.showMessageBox({
+            message: "Artículo añadido exitosamente",
+            type: "info",
+          });
+        },
+        (e) => {
+          res.success = false;
+          res.message = e.message;
+          resolve(res);
+          dialog.showMessageBox({
+            message: `Error añadiendo artículo: ${res.message}.`,
+            type: "error",
+          });
+        },
+      );
     });
   });
 

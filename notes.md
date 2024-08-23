@@ -14,7 +14,7 @@
    1. Window opens
    2. Confirmed or denied via sql :thumbsup:
 
-## Disablint items
+## Disabling items
 
 # Adding items
 

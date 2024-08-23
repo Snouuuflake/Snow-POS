@@ -13,17 +13,18 @@
 <body>
   <section class="container" id="main-section">
     <form id="new-user-form" , action="">
-      <!-- <h1>Crea una nueva empresa</h1> -->
-      <!-- <h3>Solamente se admiten letras, "." y números</h3> -->
-      <!-- <h2>Referencia</h2> -->
-      <!-- <input type="text" pattern="[0-9a-zA-Z.]{1,256}" required id="ref" /> -->
-      <!-- <h2>Descripción</h2> -->
-      <!-- <input type="text" pattern=".{1,256}" required id="desc" /> -->
-      <!-- <h2>Cantidad</h2> -->
-      <!-- <input type="number" min="0" step="1" required id="qty"/> -->
-      <!-- <h2>Precio</h2> -->
-      <!-- <input type="number" required name="price" min="0" value="0" step="0.01" required id="price"/> -->
-      <!-- <button type="submit" class="hi-button" id="submit">Aceptar</button> -->
+      <h1>Añade un usuario</h1>
+      <h3>Solamente se admiten letras y números</h3>
+      <h2>Nombre de usuario</h2>
+      <input type="text" pattern="[0-9a-zA-Z]{1,256}" required id="new-user-username" />
+      <h2>Contraseña</h2>
+      <input type="text" pattern="[0-9a-zA-Z]{1,256}" required id="new-user-password-1" />
+      <h2>Repita contraseña</h2>
+      <input type="text" pattern="[0-9a-zA-Z]{1,256}" required id="new-user-password-2" />
+      <BR>
+      <input type="checkbox" required id="new-user-isadmin"/>
+      <label for="new-user-isadmin">Administrador</label>
+      <button type="submit" class="hi-button" id="submit">Aceptar</button>
     </form>
   </section>
 </body>

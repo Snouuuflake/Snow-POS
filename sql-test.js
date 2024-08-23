@@ -37,7 +37,7 @@ function createTables(db) {
     act_ext_id integer,
     act_extra_text text,
     act_total_after integer NOT NULL,
-    act_overseer_id integer NOT NULL,
+    act_user_id integer NOT NULL,
     act_date integer NOT NULL
     );`,
       (err) => {
@@ -51,6 +51,7 @@ function createTables(db) {
       `CREATE TABLE IF NOT EXISTS Sales (
     sale_id integer PRIMARY KEY AUTOINCREMENT,
     sale_json_inventory text,
+    sale_user_id integer NOT NULL,
     sale_date integer NOT NULL
     );`,
       (err) => {
@@ -64,7 +65,9 @@ function createTables(db) {
       `CREATE TABLE IF NOT EXISTS Counts (
     count_id integer PRIMARY KEY AUTOINCREMENT,
     count_item_ref text NOT NULL,
-    count_qty
+    count_qty integer NOT NULL,
+    count_user_id integer NOT NULL,
+    count_date integer NOT NULL
     );`,
       (err) => {
         if (err) {
@@ -74,11 +77,11 @@ function createTables(db) {
     );
 
     db.run(
-      `CREATE TABLE IF NOT EXISTS Overseers (
-    overseer_id integer PRIMARY KEY AUTOINCREMENT,
-    overseer_username text UNIQUE NOT NULL,
-    overseer_password text NOT NULL,
-    overseer_is_admin integer NOT NULL
+      `CREATE TABLE IF NOT EXISTS Users (
+    user_id integer PRIMARY KEY AUTOINCREMENT,
+    user_username text UNIQUE NOT NULL,
+    user_password text NOT NULL,
+    user_is_admin integer NOT NULL
     );`,
       (err) => {
         if (err) {
@@ -157,6 +160,33 @@ function addItem(itemData) {
           resolve();
         }
       },
+    );
+  });
+}
+
+/**
+ * @param {{username: string, password1: string, password2: string, isadmin: boolean}} userData
+ *
+ */
+
+function addUser(userData) {
+  return new Promise((resolve, reject) => {
+      /*
+       * user_id       integer PRIMARY KEY AUTOINCREMENT,
+       * user_username text    UNIQUE  NOT NULL,
+       * user_password text    NOT NULL,
+       * user_is_admin integer NOT NULL
+       */
+    db.run(
+      "INSERT INTO Users(user_username, user_password, user_is_admin) Values(?, ?, ?)",
+      [userData.username, userData.password1, (userData.isadmin ? 1 : 0)],
+      (err) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve();
+        }
+      }
     );
   });
 }
