@@ -6,7 +6,7 @@ const path = require("node:path");
 const EventEmitter = require("node:events");
 class MyEmitter extends EventEmitter { }
 
-const { dbConnect, addItem } = require(`${__dirname}/sql-test.js`);
+const { dbConnect, addItem, addUser } = require(`${__dirname}/sql-test.js`);
 
 const windowList = [];
 
@@ -318,14 +318,14 @@ const createMainWindow = (db) => {
     });
   });
 
-  ipcMain.handle("req-new-user", (_event, userData) => {
+  ipcMain.handle("req-add-user", (_event, userData) => {
     /** @type {username: string, password1: string, password2: string, isadmin: boolean} */
     const parsedData = JSON.parse(userData);
     console.log(parsedData);
     return new Promise((resolve) => {
       const res = { success: true, message: "" };
 
-      if (parsedData.password1 === parsedData.password2) {
+      if (!(parsedData.password1 === parsedData.password2)) {
         res.success = false;
         res.message = "Las contraseñas no coinciden.";
         resolve(res);

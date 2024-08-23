@@ -165,10 +165,11 @@ function addItem(itemData) {
 }
 
 /**
- * @param {{username: string, password1: string, password2: string, isadmin: boolean}} userData
+ * Attempts to add user to database, returns promises that resolves void or err
  *
+ * @param {{username: string, password1: string, password2: string, isadmin: boolean}} userData
+ * @return {Promise<void>}
  */
-
 function addUser(userData) {
   return new Promise((resolve, reject) => {
       /*
@@ -191,4 +192,4 @@ function addUser(userData) {
   });
 }
 
-module.exports = { dbConnect, addItem };
+module.exports = { dbConnect, addItem, addUser};
