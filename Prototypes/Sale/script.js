@@ -1,4 +1,4 @@
-const IP = 123412341234
+const IP = 123412341234;
 
 /**
  * @parm {Object} parentElement
