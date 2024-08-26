@@ -84,12 +84,12 @@ function getIP() {
 app.get("/", function (req, res) {
   getIP().then((result) => {
     // res.send(`Hello world! <BR>Server IP is: ${result} <BR>Port is ${PORT}`);
-    res.render("index");
+    res.render("index.ejs", {a: "HELLO"});
   });
 });
 
 app.get("/mobile", (req, res) => {
-  res.render("./Sites/Sale/index");
+  res.render("./index.ejs", {a: "HELLO"});
 });
 
 app.post("/test-message", (req, res) => {

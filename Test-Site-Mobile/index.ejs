@@ -8,108 +8,19 @@
   <meta name="viewport" content="width=device-width, minimum-scale=1, initial-scale=1, user-scalable=no">
 
   <style>
-    :root {
-      --hi1-s-d: #5247eb;
-      --hi1-s: #736ce0;
-      --hi1: #847fcb;
-      --hi1-light: #a9a3f5;
-      --grey1: #eeeeee;
-      --grey2: #dddddd;
-      --grey3: #cccccc;
-      --grey4: #bbbbbb;
-      --grey5: #9a9a9a;
-      --w: 80%;
-
-    }
-
-    * {
-      font-size: 40px;
-    }
-
-    html {
-      min-height: 100%;
-      /*background: linear-gradient(to bottom, var(--hi1-light), white)*/
-      background: white;
-    }
-
-    body {
-      height: auto;
-      background-attachment: fixed;
-      margin: 0;
-      padding: 0;
-    }
-
-    button {
-      width: auto;
-      display: block;
-    }
-
-    .container {
-      width: 100%;
-      display: flex;
-      flex-flow: column nowrap;
-      gap: 10px;
-      height: auto;
-      align-items: center;
-    }
-
-    .container>* {
-      box-sizing: border-box;
-      width: var(--w);
-    }
-
-    .normal-border {
-      outline: none;
-      border-width: 3px;
-      border-style: solid;
-      border-radius: 9px;
-    }
-
-    .dark-button {
-      background-color: var(--hi1-s);
-      border-color: var(--hi1-s);
-      color: white;
-    }
-
-    .dark-button:active {
-      background-color: var(--hi1-light);
-      border-color: var(--hi1-light);
-    }
-
-    .light-grey {
-      background-color: var(--grey1);
-      border-color: var(--grey3);
-    }
   </style>
 
 </head>
 
 <body>
 
-  <div class="container" id="main">
-    <input type="text" class="normal-border light-grey" id="test-input"></input>
-    <button class="normal-border dark-button" id="a">Submit!</button>
-  </div>
+  <button class="normal-border dark-button" id="BUTTON">TEST!</button>
+    <div style="font-size: 80px;" id="DIV"></div>
 
   <script defer>
-    const testInput = document.getElementById("test-input");
-    const testButton = document.getElementById("a");
 
-    testButton.addEventListener("click", () => {
-      fetch(window.location.href + "test-message", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({message: testInput.value.trim()})
-      }).then((response) => {return response.json()}).then((response) => {
-        if (response.error) {
-          alert("Error: " + response.message);
-        } else {
-          testInput.value = "";
-        }
-      });
-    });
+    document.getElementById("BUTTON").addEventListener("click", () => {
+      console.log("<%= a %>");});
 
   </script>
 </body>
