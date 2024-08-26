@@ -14,6 +14,7 @@
   --blue-gray-900: #263238;
 
   --error: #B00020;
+  --true: #00E676;
 }
 *:not(i) {
   font-family: "Helvetica Neue", Helvetica, Arial, sans-serif
@@ -29,15 +30,33 @@ body {
   display: flex;
   align-items: center;
   flex-direction: column;
+  gap: 30px;
 }
 
+#BUTTON {
+  width: 100%;
+  height: 80px;
+  font-size: 56px;
+  outline: none;
+  border: none;
+  border-radius: 5px;
+  background-color: var(--blue-gray-50);
+  color: var(--blue-gray-200);
+}
 
-.ref-input: {
+.ref-container: {
   width: 100%;
 }
 
 .mdiy-error {
   background-color: var(--error) !important;
+}
+.mdiy-true {
+  background-color: var(--true) !important;
+}
+
+.mdiy-blank {
+  background-color: var(--primary) !important;
 }
 
 .mdiy-textfield-filled {
@@ -112,7 +131,7 @@ body {
   margin: 0;
   height: 80px;
   width: 45%;
-  font-size: 60px;
+  font-size: 50px;
   color: var(--blue-gray-800);
 }
 
@@ -136,8 +155,11 @@ body {
   overflow: hidden;
 }
 
+.input-qty, .qty-badge-limit {
+  font-size: 40px;
+}
+
 .input-qty {
-  font-size: 50px;
 }
 
 .qty-badge-container {
@@ -152,10 +174,11 @@ body {
 }
 
 .qty-badge-limit {
-  font-size: 50px;
 }
 
-.qty-badge-false {
+.qty-badge-error {
+  font-size: 50px;
+  color: white;
 }
 
 .qty-badge-true {

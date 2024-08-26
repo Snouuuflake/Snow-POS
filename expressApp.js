@@ -89,7 +89,7 @@ app.get("/", function (req, res) {
 });
 
 app.get("/mobile", (req, res) => {
-  // do nothing
+  res.render("./Sites/Sale/index");
 });
 
 app.post("/test-message", (req, res) => {
