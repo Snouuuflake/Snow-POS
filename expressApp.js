@@ -49,17 +49,6 @@ process.on("message", (message) => {
   }
 });
 
-// FIXME: this is for testing!
-ipcProcess.on("a", (data) => {
-  console.log("Express: " + "a" + " " + data);
-});
-ipcProcess.on("b", (data) => {
-  ipcProcess.on("a", (_data) => console.log("monads"));
-});
-ipcProcess.on("c", (data) => {
-  console.log("Express: " + "c" + " " + data);
-});
-
 function getQRData(url) {
   return new Promise((resolve1) => {
     QRCode.toDataURL(url).then((qrCodeImage) => {
