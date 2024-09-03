@@ -6,11 +6,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title></title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-  <%- include('./sale-style'); %>
+  <%- include('./style'); %>
 </head>
 
 <body>
-  
+
   <button id="add-item-button">Nuevo artículo</button>
   <!-- <section class="item-container"> -->
   <!--   <div class="mdiy-textfield-filled ref-container"> -->
@@ -158,7 +158,7 @@
         validateItem();
       });
 
-      refInput.addEventListener("change", () => {
+      refInput.addEventListener("input", () => {
         refInput.value = refInput.value.trim();
         refInput.value = refInput.value.toUpperCase();
         validateItem();
@@ -200,10 +200,12 @@
 
     /** INFO: Submit button and final validation */
     document.getElementById("submit-sale-button").addEventListener("click", () => {
-      const refContainers = document.getElementsByClassName("item-container");
+      /** @type Array<{ref: string, qty: number} */
+      const sale = []
+      const itemContainers = document.getElementsByClassName("item-container");
       let valid = true;
-      if (refContainers.length) {
-        for (const item of refContainers) {
+      if (itemContainers.length) {
+        for (const item of itemContainers) {
           // qty-badge-container mdiy-blank
           if (
             !item
@@ -216,6 +218,22 @@
 
         if (valid) {
           alert("Venta válida!");
+          // INFO: submitting sale
+          for (const item of itemContainers) {
+            const iRef = item.getElementsByClassName("ref-input")[0].value;
+            const iQty = parseInt(item.getElementsByClassName("input-qty")[0].innerText)
+            const preExisting = sale.find((saleItem) => saleItem.ref == iRef);
+            console.log("pre: ", preExisting);
+            if (preExisting) {
+              preExisting.qty += iQty
+            } else {
+              sale.push({
+                ref: iRef,
+                qty: iQty
+              })
+            }
+          }
+          console.log(sale);
         } else {
           alert("Existen artículos inválidos!");
         }
