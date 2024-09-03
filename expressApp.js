@@ -9,7 +9,7 @@ app.use(express.json());
 // Set EJS as the view engine
 app.set("view engine", "ejs");
 // Define the directory where your HTML files (views) are located
-app.set("views", path.join(__dirname, "Test-Site-Mobile"));
+app.set("views", path.join(__dirname, "views"));
 
 const PORT = 3000;
 
@@ -32,7 +32,7 @@ const ipcProcess = {
    * @param {string} c Channel
    * @param {function} f Callback function
    */
-  on: function (c, f) {
+  on: function(c, f) {
     this.callbacks[c] = f;
   },
 };
@@ -70,16 +70,16 @@ function getIP() {
   });
 }
 
-app.get("/", function (req, res) {
-  getIP().then((result) => {
-    // res.send(`Hello world! <BR>Server IP is: ${result} <BR>Port is ${PORT}`);
-    res.render("index.ejs", {a: "HELLO"});
-  });
-});
-
-app.get("/mobile", (req, res) => {
-  res.render("./index.ejs", {a: "HELLO"});
-});
+// app.get("/", function (req, res) {
+//   getIP().then((result) => {
+//     // res.send(`Hello world! <BR>Server IP is: ${result} <BR>Port is ${PORT}`);
+//     res.render("index.ejs", {a: "HELLO"});
+//   });
+// });
+//
+// app.get("/mobile", (req, res) => {
+//   res.render("./index.ejs", {a: "HELLO"});
+// });
 
 app.post("/test-message", (req, res) => {
   const content = req.body;
@@ -100,6 +100,22 @@ app.post("/test-message", (req, res) => {
   // process.send("message", content);
 });
 
+app.get("/sale", (req, res) => {
+  getIP().then((ip) => {
+    res.render("sale.ejs", { IP: `${ip}:${PORT}` });
+  });
+});
+
+app.post("/validate-item", (req, res) => {
+  const body = req.body;
+  console.log(body)
+  if (body.ref === "AC1004") {
+    res.status(202).send({ exists: true, stock: 10 })
+  } else {
+    res.status(202).send({ exists: false, stock: 0 })
+  }
+})
+
 getIP().then((ip) => {
   app.listen(PORT, [ip, "localhost"], () => {
     ipcProcess.send("listening", "listening :)");
@@ -117,3 +133,5 @@ ipcProcess.on("req-qr", (_data) => {
     });
   // getIP().then((ip) => { console.log(ip) });
 });
+
+
