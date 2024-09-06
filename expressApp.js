@@ -66,11 +66,11 @@ const ipcProcess = {
     process.send(JSON.stringify({ channel: c, data: d }));
   },
   _emitter: new EventEmitter(),
-  /** @type {{ function(channel: string, callback: function(Object) ) }} */
+  /** @type {{ function(channel: string, callback: function(any) ) }} */
   on: function (c, f) {
     this._emitter.on(c, f);
   },
-  /** @type {{ function(channel: string, callback: function(Object) ) }} */
+  /** @type {{ function(channel: string, callback: function(any) ) }} */
   once: function (c, f) {
     this._emitter.once(c, f);
   }
@@ -149,7 +149,7 @@ getIP().then((ip) => {
   });
 });
 
-ipcEmitter.on("req-qr", (_data) => {
+ipcProcess.on("req-qr", (_data) => {
   getIP()
     .then((ip) => {
       return getQRData("http://" + ip + ":" + PORT);

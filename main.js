@@ -4,7 +4,7 @@ const { app, BrowserWindow, ipcMain, dialog } = require("electron");
 const path = require("node:path");
 
 const EventEmitter = require("node:events");
-class MyEmitter extends EventEmitter { }
+class MyEmitter extends EventEmitter {}
 
 const { dbConnect, addItem, addUser } = require(`${__dirname}/sql-test.js`);
 
@@ -33,7 +33,6 @@ function loadExpress() {
     cwd: `${__dirname}/`,
   });
 
-  // sets up ipc with channels
   expressFork.ipcCustom = {
     /**
      * Sends an ipc message to the fork process
@@ -44,28 +43,21 @@ function loadExpress() {
     send: (c, d) => {
       expressFork.send(JSON.stringify({ channel: c, data: d }));
     },
-    callbacks: {},
-    /**
-     * Sets up a callback for an ipc message from the fork process
-     * Replicates ipcMain.on, but the callback only takes the argument (data).
-     * @param {string} c Channel
-     * @param {function} f Callback function
-     */
-    on: function(c, f) {
-      this.callbacks[c] = f;
+    _emitter: new EventEmitter(),
+    /** @type {{ function(channel: string, callback: function(any) ) }} */
+    on: function (c, f) {
+      this._emitter.on(c, f);
+    },
+    /** @type {{ function(channel: string, callback: function(any) ) }} */
+    once: function (c, f) {
+      this._emitter.once(c, f);
     },
   };
 
   expressFork.on("message", (message) => {
-    // expects a json message - {"channel", "message"}
+    /** @type {{ channel: string, data: string }} */
     const parsedMessage = JSON.parse(message);
-    // iterates through all channels in @param callbacks and
-    // runs the corresponding callback(message.data)
-    for (const key of Object.keys(expressFork.ipcCustom.callbacks)) {
-      if (parsedMessage.channel == key) {
-        expressFork.ipcCustom.callbacks[key](parsedMessage.data);
-      }
-    }
+    expressFork.ipcCustom._emitter.emit(parsedMessage.channel, parsedMessage.data);
   });
   return expressFork;
 }
@@ -406,6 +398,7 @@ const createMainWindow = (db) => {
 
   const expressFork = loadExpress();
   // sets up emitting an event on every message for some channels
+  // FIXME: This is also stupid.
   const expressForkEmitter = new MyEmitter();
 
   // emits "new-qr" on every "res-qr" recieved
