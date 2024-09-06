@@ -1,8 +1,10 @@
+const EventEmitter = require("node:events");
 const dns = require("node:dns");
 const path = require("node:path");
 const os = require("node:os");
 const QRCode = require("qrcode");
 var express = require("express");
+const { emitKeypressEvents } = require("node:readline");
 var app = express();
 app.use(express.json());
 
@@ -13,8 +15,46 @@ app.set("views", path.join(__dirname, "views"));
 
 const PORT = 3000;
 
-// "implementation" of ipcMain for fork process,
-// for syntax's sake
+// // NOTE: This is stupid
+//
+// // "implementation" of ipcMain for fork process,
+// // for syntax's sake
+// const ipcProcess = {
+//   /**
+//    * Sends an ipc message to the main process
+//    * Replicates ipcMain.send
+//    * @param {string} c channel
+//    * @param {string} d data
+//    */
+//   send: (c, d) => {
+//     process.send(JSON.stringify({ channel: c, data: d }));
+//   },
+//   callbacks: {},
+//   /**
+//    * Sets up a callback for an ipc message from the main process.
+//    * Replicates ipcMain.on, but the callback only takes the argument (data).
+//    * @param {string} c Channel
+//    * @param {function} f Callback function
+//    */
+//   on: function(c, f) {
+//     this.callbacks[c] = f;
+//   },
+// };
+//
+// // setting up ipcProcess.on
+// process.on("message", (message) => {
+//   const parsedMessage = JSON.parse(message);
+//   // iterates through all channels in ipcProcess.callbacks and
+//   // runs the corresponding callback(message.data)
+//   // FIXME: make process.on
+//
+//   for (const c of Object.keys(ipcProcess.callbacks)) {
+//     if (parsedMessage.channel == c) {
+//       ipcProcess.callbacks[c](parsedMessage.data);
+//     }
+//   }
+// });
+
 const ipcProcess = {
   /**
    * Sends an ipc message to the main process
@@ -25,29 +65,38 @@ const ipcProcess = {
   send: (c, d) => {
     process.send(JSON.stringify({ channel: c, data: d }));
   },
-  callbacks: {},
-  /**
-   * Sets up a callback for an ipc message from the main process.
-   * Replicates ipcMain.on, but the callback only takes the argument (data).
-   * @param {string} c Channel
-   * @param {function} f Callback function
-   */
-  on: function(c, f) {
-    this.callbacks[c] = f;
+  _emitter: new EventEmitter(),
+  /** @type {{ function(channel: string, callback: function(Object) ) }} */
+  on: function (c, f) {
+    this._emitter.on(c, f);
   },
-};
-
-// setting up ipcProcess.on
-process.on("message", (message) => {
-  const parsedMessage = JSON.parse(message);
-  // iterates through all channels in ipcProcess.callbacks and
-  // runs the corresponding callback(message.data)
-  for (const c of Object.keys(ipcProcess.callbacks)) {
-    if (parsedMessage.channel == c) {
-      ipcProcess.callbacks[c](parsedMessage.data);
-    }
+  /** @type {{ function(channel: string, callback: function(Object) ) }} */
+  once: function (c, f) {
+    this._emitter.once(c, f);
   }
+}
+// const ipcEmitter = new EventEmitter();
+process.on("message", (message) => {
+  /** @type {{ channel: string, data: string }} */
+  const parsedMessage = JSON.parse(message);
+  ipcProcess._emitter.emit(parsedMessage.channel, parsedMessage.data);
 });
+
+//  ipcProcess.send:
+//  sale-submit, JSON.stringify({
+//    uniqueID: Date.now() + Math.random(),
+//    sale: sale
+//  })
+//  --------------------------------------
+//  process.send:
+//    channel: uniqueID
+//    data: sale response
+//  --------------------------------------
+//  inside post sale-submission:
+//    ipcProcess.once(uniqueID, (data) => {
+//      res.send ... json
+//      -> alert sale success? and sale contents
+//    })
 
 function getQRData(url) {
   return new Promise((resolve1) => {
@@ -70,36 +119,6 @@ function getIP() {
   });
 }
 
-// app.get("/", function (req, res) {
-//   getIP().then((result) => {
-//     // res.send(`Hello world! <BR>Server IP is: ${result} <BR>Port is ${PORT}`);
-//     res.render("index.ejs", {a: "HELLO"});
-//   });
-// });
-//
-// app.get("/mobile", (req, res) => {
-//   res.render("./index.ejs", {a: "HELLO"});
-// });
-
-app.post("/test-message", (req, res) => {
-  const content = req.body;
-
-  if (content.message) {
-    console.log("Got POST request: /test-message " + content.message);
-    ipcProcess.send("test-message", content.message);
-    res.status(202).send({ message: "Success" });
-  } else {
-    console.log("no message!");
-    res
-      .status(418)
-      .send({
-        error: "no-message",
-        message: "Message is blank! Input was not registered",
-      });
-  }
-  // process.send("message", content);
-});
-
 app.get("/sale", (req, res) => {
   getIP().then((ip) => {
     res.render("sale.ejs", { IP: `${ip}:${PORT}` });
@@ -107,14 +126,21 @@ app.get("/sale", (req, res) => {
 });
 
 app.post("/validate-item", (req, res) => {
+  /** @type {{ref: string, qty: number}} */
   const body = req.body;
-  console.log(body)
-  if (body.ref === "AC1004") {
-    res.status(202).send({ exists: true, stock: 10 })
-  } else {
-    res.status(202).send({ exists: false, stock: 0 })
-  }
-})
+  console.log(body);
+
+  /** @type {{uniqueID: number, body: body}} */
+  const vadlidationRequest = {
+    uniqueID: Date.now() + Math.random(),
+    body: body,
+  };
+
+  ipcProcess.send("req-validate-item", vadlidationRequest);
+  ipcProcess.once(`${vadlidationRequest.uniqueID}`, (response) => {
+    res.send(JSON.stringify(response));
+  });
+});
 
 getIP().then((ip) => {
   app.listen(PORT, [ip, "localhost"], () => {
@@ -123,7 +149,7 @@ getIP().then((ip) => {
   });
 });
 
-ipcProcess.on("req-qr", (_data) => {
+ipcEmitter.on("req-qr", (_data) => {
   getIP()
     .then((ip) => {
       return getQRData("http://" + ip + ":" + PORT);
@@ -133,5 +159,3 @@ ipcProcess.on("req-qr", (_data) => {
     });
   // getIP().then((ip) => { console.log(ip) });
 });
-
-
