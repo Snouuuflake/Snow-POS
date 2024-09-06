@@ -130,11 +130,14 @@
           .then(
             (json) => {
               console.log(json);
-              if (json.exists) {
-                if (json.stock >= parseInt(inputQtyDiv.innerText)) {
+              if (json.hasError) {
+                alert(json.errorMessage);
+                setBadgeE();
+              } else if (json.exists) {
+                if (json.qty >= parseInt(inputQtyDiv.innerText)) {
                   setBadgeT();
                 } else {
-                  setBadgeF(json.stock);
+                  setBadgeF(json.qty);
                 }
               } else {
                 setBadgeE();

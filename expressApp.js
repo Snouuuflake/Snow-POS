@@ -126,19 +126,23 @@ app.get("/sale", (req, res) => {
 });
 
 app.post("/validate-item", (req, res) => {
-  /** @type {{ref: string, qty: number}} */
-  const body = req.body;
-  console.log(body);
+  /** @type {{ref: string, qty: number}} body*/
+  const validationRequestBody = req.body;
+  console.log(validationRequestBody);
 
   /** @type {{uniqueID: number, body: body}} */
   const vadlidationRequest = {
     uniqueID: Date.now() + Math.random(),
-    body: body,
+    body: validationRequestBody,
   };
 
   ipcProcess.send("req-validate-item", vadlidationRequest);
-  ipcProcess.once(`${vadlidationRequest.uniqueID}`, (response) => {
-    res.send(JSON.stringify(response));
+  ipcProcess.once(`${vadlidationRequest.uniqueID}`, 
+    /** 
+     * @param {{ hasError: boolean, errorMessage?: string, exists?: boolean, qty?: number }} validationResponse
+     */
+    (validationResponse) => {
+    res.send(JSON.stringify(validationResponse));
   });
 });
 

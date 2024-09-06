@@ -148,7 +148,7 @@ async function dbConnect(dbPath) {
  * @param {{ref:string, desc:string, qty:number, price:number}} itemData
  * @return {Promise<void>}
  */
-function addItem(itemData) {
+function addItem(db, itemData) {
   return new Promise((resolve, reject) => {
     db.run(
       "INSERT INTO Items(item_ref, item_desc, item_qty, item_price) Values(?, ?, ?, ?)",
@@ -172,24 +172,58 @@ function addItem(itemData) {
  */
 function addUser(userData) {
   return new Promise((resolve, reject) => {
-      /*
-       * user_id       integer PRIMARY KEY AUTOINCREMENT,
-       * user_username text    UNIQUE  NOT NULL,
-       * user_password text    NOT NULL,
-       * user_is_admin integer NOT NULL
-       */
+    /*
+     * user_id       integer PRIMARY KEY AUTOINCREMENT,
+     * user_username text    UNIQUE  NOT NULL,
+     * user_password text    NOT NULL,
+     * user_is_admin integer NOT NULL
+     */
     db.run(
       "INSERT INTO Users(user_username, user_password, user_is_admin) Values(?, ?, ?)",
-      [userData.username, userData.password1, (userData.isadmin ? 1 : 0)],
+      [userData.username, userData.password1, userData.isadmin ? 1 : 0],
       (err) => {
         if (err) {
           reject(err);
         } else {
           resolve();
         }
-      }
+      },
     );
   });
 }
 
-module.exports = { dbConnect, addItem, addUser};
+/**
+ * @param db
+ * @param {{ref: string, qty: number}} validationRequestBody
+ */
+function validateItem(db, validationRequestBody) {
+  return new Promise((resolve) => {
+    const sql = `SELECT item_qty
+     FROM Items
+     WHERE item_ref = ?`;
+
+    db.get(sql, validationRequestBody.ref, (err, row) => {
+      const validationResponse = {
+        hasError: false,
+        errorMessage: undefined,
+        exists: undefined,
+        qty: undefined,
+      };
+
+      if (err) {
+        validationResponse.hasError = true;
+        validationResponse.errorMessage = err.message;
+      } else {
+        if (row) {
+          validationResponse.exists = true;
+          validationResponse.qty = row.item_qty;
+        } else {
+          validationResponse.exists = false;
+        }
+      }
+      resolve(validationResponse);
+    });
+  });
+}
+
+module.exports = { dbConnect, addItem, addUser, validateItem };

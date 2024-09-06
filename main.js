@@ -4,9 +4,11 @@ const { app, BrowserWindow, ipcMain, dialog } = require("electron");
 const path = require("node:path");
 
 const EventEmitter = require("node:events");
-class MyEmitter extends EventEmitter {}
+class MyEmitter extends EventEmitter { }
 
-const { dbConnect, addItem, addUser } = require(`${__dirname}/sql-test.js`);
+const { dbConnect, addItem, addUser, validateItem } = require(
+  `${__dirname}/sql-test.js`,
+);
 
 const windowList = [];
 
@@ -45,11 +47,11 @@ function loadExpress() {
     },
     _emitter: new EventEmitter(),
     /** @type {{ function(channel: string, callback: function(any) ) }} */
-    on: function (c, f) {
+    on: function(c, f) {
       this._emitter.on(c, f);
     },
     /** @type {{ function(channel: string, callback: function(any) ) }} */
-    once: function (c, f) {
+    once: function(c, f) {
       this._emitter.once(c, f);
     },
   };
@@ -57,7 +59,10 @@ function loadExpress() {
   expressFork.on("message", (message) => {
     /** @type {{ channel: string, data: string }} */
     const parsedMessage = JSON.parse(message);
-    expressFork.ipcCustom._emitter.emit(parsedMessage.channel, parsedMessage.data);
+    expressFork.ipcCustom._emitter.emit(
+      parsedMessage.channel,
+      parsedMessage.data,
+    );
   });
   return expressFork;
 }
@@ -365,9 +370,6 @@ const createMainWindow = (db) => {
     });
     newItemWindow.loadFile(`${__dirname}/Windows/New-Item/index.html`);
 
-    newItemWindow.on("closed", () => {
-      ipcMain.removeHandler("req-add-item");
-    });
   });
   // ^
   ipcMain.handle("req-add-item", (_event, itemData) => {
@@ -375,7 +377,7 @@ const createMainWindow = (db) => {
     console.log(parsedData);
     return new Promise((resolve) => {
       const res = { success: true, message: "" };
-      addItem(parsedData).then(
+      addItem(db, parsedData).then(
         () => {
           resolve(res);
           dialog.showMessageBox({
@@ -412,6 +414,32 @@ const createMainWindow = (db) => {
     ipcAllWindows("test-message", data);
     console.log("Main test-message: ", data);
   });
+
+  expressFork.ipcCustom.on(
+    "req-validate-item",
+    /** @param {{uniqueID: number, body: {ref: string, qty: number}}} validationRequest */
+    (validationRequest) => {
+      validateItem(db, validationRequest.body).then(
+        /**
+         * @param {{
+         * hasError: boolean,
+         * errorMessage?: string,
+         * exists?: boolean,
+         * qty?: number
+         * }} validationResponse
+         */
+        (validationResponse) => {
+          expressFork.ipcCustom.send(
+            `${validationRequest.uniqueID}`,
+            validationResponse,
+          );
+        },
+        (err) => {
+          console.error(err);
+        },
+      );
+    },
+  );
 
   // all on's that arent "listening" should probably be
   // declared first.
