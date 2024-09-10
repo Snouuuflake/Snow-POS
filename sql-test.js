@@ -198,7 +198,7 @@ function addUser(userData) {
  */
 function validateItem(db, validationRequestBody) {
   return new Promise((resolve) => {
-    const sql = `SELECT item_qty
+    const sql = `SELECT item_qty, item_price
      FROM Items
      WHERE item_ref = ?`;
 
@@ -208,6 +208,7 @@ function validateItem(db, validationRequestBody) {
         errorMessage: undefined,
         exists: undefined,
         qty: undefined,
+        price: undefined,
       };
 
       if (err) {
@@ -217,6 +218,7 @@ function validateItem(db, validationRequestBody) {
         if (row) {
           validationResponse.exists = true;
           validationResponse.qty = row.item_qty;
+          validationResponse.price = row.item_price;
         } else {
           validationResponse.exists = false;
         }

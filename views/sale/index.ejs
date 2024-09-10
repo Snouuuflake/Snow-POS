@@ -49,31 +49,40 @@
       const newSection = document.createElement("section");
       newSection.classList.add("item-container");
       newSection.innerHTML = `
+    <div class="price-container">
+      <div class="price-box">
+        <div class="price-text">
+        </div>
+      </div>
+    </div>
     <div class="mdiy-textfield-filled ref-container">
        <input type="text" class="_mdiy-textfield-filled-input ref-input" placeholder="Referencia"></input>
-       <button class="_mdiy-textfield-filled-button">
+       <button class="_mdiy-textfield-filled-button ref-input-x">
          <i class="bi bi-x _mdiy-textfield-filled-icon"></i>
        </button>
      </div>
      <div class="qty-container">
        <div class="mdiy-pm">
-         <button class="_mdiy-pm-p"><i class="bi bi-plus"></i></button>
-         <button class="_mdiy-pm-m"><i class="bi bi-dash"></i></button>
+         <button class="_mdiy-pm-p plus-button"><i class="bi bi-plus"></i></button>
+         <button class="_mdiy-pm-m minus-button"><i class="bi bi-dash"></i></button>
        </div>
        <div class="input-qty-container">
-         <div class="input-qty">0</div>
+         <div class="input-qty">1</div>
        </div>
-       <!-- TODO: classes: midy-error, mdiy-blank, mdiy-true -->
        <div class="qty-badge-container mdiy-blank">
          <!-- <div class="qty-badge-limit">7764</div> -->
        </div>
-     </div> `;
-      const pButton = gebcn(newSection, "_mdiy-pm-p");
-      const mButton = gebcn(newSection, "_mdiy-pm-m");
+     </div>
+     <div class = price container>
+     </div>
+     `;
+      const pButton = gebcn(newSection, "plus-button");
+      const mButton = gebcn(newSection, "minus-button");
       const inputQtyDiv = gebcn(newSection, "input-qty");
       const badgeContainer = gebcn(newSection, "qty-badge-container");
       const refInput = gebcn(newSection, "ref-input");
-      const xButton = gebcn(newSection, "_mdiy-textfield-filled-button");
+      const xButton = gebcn(newSection, "ref-input-x");
+      const priceText = gebcn(newSection, "price-text");
 
       xButton.addEventListener("click", () => {
         newSection.remove();
@@ -107,6 +116,22 @@
         badgeContainer.replaceChildren(xIcon);
       };
 
+      /**
+       * Sets item price
+       * @param {number} priceInt Price in cents as int
+       */
+      const setPrice = (priceInt) => {
+        const units = Math.floor(priceInt / 100)
+        const cents = priceInt - (Math.floor(priceInt/100) * 100)
+        priceText.innerText = "$" + `${units}.${(cents < 10) ? "0" : ""}${cents}`;
+      }
+      /**
+       * empties priceText
+       */
+      const voidPrice = () => {
+        priceText.innerText = "";
+      }
+
       function validateItem() {
         fetch(`/validate-item`, {
           headers: {
@@ -124,6 +149,7 @@
             },
             (e) => {
               setBadgeE();
+              voidPrice();
               console.error(e);
             },
           )
@@ -133,18 +159,22 @@
               if (json.hasError) {
                 alert(json.errorMessage);
                 setBadgeE();
+                voidPrice();
               } else if (json.exists) {
                 if (json.qty >= parseInt(inputQtyDiv.innerText)) {
                   setBadgeT();
                 } else {
                   setBadgeF(json.qty);
                 }
+                setPrice(json.price);
               } else {
                 setBadgeE();
+                voidPrice();
               }
             },
             (e) => {
               setBadgeE();
+              voidPrice();
               console.error(e);
             },
           );
@@ -157,7 +187,7 @@
 
       mButton.addEventListener("click", () => {
         const prevText = inputQtyDiv.innerText;
-        inputQtyDiv.innerText = `${prevText > 0 ? parseInt(inputQtyDiv.innerText) - 1 : prevText}`;
+        inputQtyDiv.innerText = `${prevText > 1 ? parseInt(inputQtyDiv.innerText) - 1 : prevText}`;
         validateItem();
       });
 
@@ -181,6 +211,7 @@
     /**
      * If the last ref input is empty, appends a new one,
      * if not, focuses it
+     * TODO: Combine == refs and sum their prices on enter
      */
     const crEvent = () => {
       const allInputs = document.getElementsByClassName("ref-input");

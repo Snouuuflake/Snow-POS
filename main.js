@@ -369,7 +369,6 @@ const createMainWindow = (db) => {
       modal: true,
     });
     newItemWindow.loadFile(`${__dirname}/Windows/New-Item/index.html`);
-
   });
   // ^
   ipcMain.handle("req-add-item", (_event, itemData) => {
@@ -422,10 +421,11 @@ const createMainWindow = (db) => {
       validateItem(db, validationRequest.body).then(
         /**
          * @param {{
-         * hasError: boolean,
-         * errorMessage?: string,
-         * exists?: boolean,
-         * qty?: number
+         *   hasError: boolean,
+         *   errorMessage?: string,
+         *   exists?: boolean,
+         *   qty?: number,
+         *   price?: number
          * }} validationResponse
          */
         (validationResponse) => {
@@ -433,6 +433,7 @@ const createMainWindow = (db) => {
             `${validationRequest.uniqueID}`,
             validationResponse,
           );
+          console.log(typeof validationResponse.price);
         },
         (err) => {
           console.error(err);

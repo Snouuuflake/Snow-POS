@@ -139,7 +139,13 @@ app.post("/validate-item", (req, res) => {
   ipcProcess.send("req-validate-item", vadlidationRequest);
   ipcProcess.once(`${vadlidationRequest.uniqueID}`, 
     /** 
-     * @param {{ hasError: boolean, errorMessage?: string, exists?: boolean, qty?: number }} validationResponse
+     * @param {{ 
+     *   hasError: boolean,
+     *   errorMessage?: string,
+     *   exists?: boolean,
+     *   qty?: number,
+     *   price?: number
+     * }} validationResponse
      */
     (validationResponse) => {
     res.send(JSON.stringify(validationResponse));
