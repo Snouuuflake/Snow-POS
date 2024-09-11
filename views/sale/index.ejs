@@ -73,8 +73,6 @@
          <!-- <div class="qty-badge-limit">7764</div> -->
        </div>
      </div>
-     <div class = price container>
-     </div>
      `;
       const pButton = gebcn(newSection, "plus-button");
       const mButton = gebcn(newSection, "minus-button");
@@ -214,6 +212,34 @@
      * TODO: Combine == refs and sum their prices on enter
      */
     const crEvent = () => {
+
+      /** 
+       * iterate this thing on all unique refs
+       * @param {string} ref
+       */
+      const reduceRef = (ref) => {
+        const allSections = document.getElementsByClassName("item-container");
+        const filtered = Array.from(allSections).filter((s) => {
+          return (s.getElementsByClassName("ref-input")[0].value == ref)
+        });
+        console.log(filtered);
+
+        if (filtered.length > 1) {
+          const finalQtyDiv = filtered[0].getElementsByClassName("input-qty")[0];
+          for (item of filtered.slice(1)) {
+            const itemQtyDiv = item.getElementsByClassName("input-qty")[0];
+            finalQtyDiv.innerText = `${parseInt(finalQtyDiv.innerText) + parseInt(itemQtyDiv.innerText)}`;
+            item.remove();
+          }
+        }
+      }
+
+      const allRefs = [... new Set( Array.from(document.getElementsByClassName("ref-input")).map((item) => {
+        return item.value;
+        })) ];
+
+      allRefs.forEach(reduceRef);
+      
       const allInputs = document.getElementsByClassName("ref-input");
       if (allInputs.length > 0 && !allInputs[allInputs.length - 1].value) {
         allInputs[allInputs.length - 1].focus();
