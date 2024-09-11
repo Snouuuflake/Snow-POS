@@ -12,6 +12,7 @@
 <body>
 
   <button id="add-item-button">Nuevo artículo</button>
+  <div class="total-text-container">Total: $<span class="total-number">0.00</span></div>
   <!-- <section class="item-container"> -->
   <!--   <div class="mdiy-textfield-filled ref-container"> -->
   <!--     <input type="text" class="_mdiy-textfield-filled-input ref-input" placeholder="Referencia"></input> -->
@@ -51,7 +52,7 @@
       newSection.innerHTML = `
     <div class="price-container">
       <div class="price-box">
-        <div class="price-text">
+        <div class="price-text">$<span class="price-number">0.00</span>
         </div>
       </div>
     </div>
@@ -80,7 +81,7 @@
       const badgeContainer = gebcn(newSection, "qty-badge-container");
       const refInput = gebcn(newSection, "ref-input");
       const xButton = gebcn(newSection, "ref-input-x");
-      const priceText = gebcn(newSection, "price-text");
+      const priceText = gebcn(newSection, "price-number");
 
       xButton.addEventListener("click", () => {
         newSection.remove();
@@ -121,7 +122,7 @@
       const setPrice = (priceInt) => {
         const units = Math.floor(priceInt / 100)
         const cents = priceInt - (Math.floor(priceInt/100) * 100)
-        priceText.innerText = "$" + `${units}.${(cents < 10) ? "0" : ""}${cents}`;
+        priceText.innerText = `${units}.${(cents < 10) ? "0" : ""}${cents}`;
       }
       /**
        * empties priceText
@@ -234,11 +235,15 @@
         }
       }
 
-      const allRefs = [... new Set( Array.from(document.getElementsByClassName("ref-input")).map((item) => {
-        return item.value;
-        })) ];
+      // javascript is a cool language
+      const allRefs = [... new Set( Array.from(document.getElementsByClassName("ref-input")).map(item => item.value)) ];
 
       allRefs.forEach(reduceRef);
+
+      const totalText = document.getElementsByClassName("total-number")[0];
+      totalText.innerText = Array.from(document.getElementsByClassName("item-container")).reduce((total, elm) => {
+        return total + (parseFloat(elm.getElementsByClassName("price-number")[0].innerText || "0") * parseInt(elm.getElementsByClassName("input-qty")[0].innerText));
+      },0).toFixed(2);
       
       const allInputs = document.getElementsByClassName("ref-input");
       if (allInputs.length > 0 && !allInputs[allInputs.length - 1].value) {
@@ -249,7 +254,7 @@
       }
     };
 
-    /** NOTE: add-item-button and CR cause crEvent */
+    /** INFO: add-item-button and CR cause crEvent */
     document.getElementById("add-item-button").addEventListener("click", crEvent);
 
     document.addEventListener("keydown", function onEvent(event) {
@@ -260,7 +265,7 @@
 
     /** INFO: Submit button and final validation */
     document.getElementById("submit-sale-button").addEventListener("click", () => {
-      /** @type Array<{ref: string, qty: number} */
+      /** @type Array<{ref: string, qty: number}> */
       const sale = []
       const itemContainers = document.getElementsByClassName("item-container");
       let valid = true;
