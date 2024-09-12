@@ -12,7 +12,9 @@
 <body>
 
   <button id="add-item-button">Nuevo artículo</button>
-  <div class="total-text-container">Total: $<span class="total-number">0.00</span></div>
+  <div class="total-text-container">
+    Total: <span class="total-dollar">$</span><span class="total-number">0.00</span>
+  </div>
   <!-- <section class="item-container"> -->
   <!--   <div class="mdiy-textfield-filled ref-container"> -->
   <!--     <input type="text" class="_mdiy-textfield-filled-input ref-input" placeholder="Referencia"></input> -->
@@ -52,7 +54,7 @@
       newSection.innerHTML = `
     <div class="price-container">
       <div class="price-box">
-        <div class="price-text">$<span class="price-number">0.00</span>
+        <div class="price-text"><span class="price-dollar" style="display: none;">$</span><span class="price-number"></span>
         </div>
       </div>
     </div>
@@ -82,6 +84,7 @@
       const refInput = gebcn(newSection, "ref-input");
       const xButton = gebcn(newSection, "ref-input-x");
       const priceText = gebcn(newSection, "price-number");
+      const priceDollar = gebcn(newSection, "price-dollar");
 
       xButton.addEventListener("click", () => {
         newSection.remove();
@@ -116,19 +119,22 @@
       };
 
       /**
-       * Sets item price
+       * Sets item price (shows priceDollar)
        * @param {number} priceInt Price in cents as int
        */
       const setPrice = (priceInt) => {
+        priceDollar.style.display = "inline";
         const units = Math.floor(priceInt / 100)
         const cents = priceInt - (Math.floor(priceInt/100) * 100)
         priceText.innerText = `${units}.${(cents < 10) ? "0" : ""}${cents}`;
       }
+      
       /**
-       * empties priceText
+       * empties priceText and hides priceDollar
        */
       const voidPrice = () => {
         priceText.innerText = "";
+        priceDollar.style.display = "none";
       }
 
       function validateItem() {
@@ -299,6 +305,22 @@
             }
           }
           console.log(sale);
+
+          fetch(`/submit-sale` {
+            headers: {
+              "Content-Type": "application/json",
+            },
+            method: "POST",
+            body: JSON.stringify({
+              sale: sale
+            }),
+          }).then( (response) => {
+            return response.json();
+          }, (e) => {console.error(e)}
+          ).then( (json) => {
+            console.log(json):
+          });
+
         } else {
           alert("Existen artículos inválidos!");
         }

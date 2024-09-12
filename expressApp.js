@@ -7,6 +7,7 @@ var express = require("express");
 const { emitKeypressEvents } = require("node:readline");
 var app = express();
 app.use(express.json());
+const uuidv4 = require("uuid/v4");
 
 // Set EJS as the view engine
 app.set("view engine", "ejs");
@@ -126,17 +127,17 @@ app.get("/sale", (req, res) => {
 });
 
 app.post("/validate-item", (req, res) => {
-  /** @type {{ref: string, qty: number}} body*/
+  /** @type {{ref: string, qty: number}} saleRequestBody*/
   const validationRequestBody = req.body;
   console.log(validationRequestBody);
 
-  /** @type {{uniqueID: number, body: body}} */
+  /** @type {{uniqueID: string, body: saleRequestBody}} */
   const vadlidationRequest = {
-    uniqueID: Date.now() + Math.random(),
+    uniqueID: uuidv4(),
     body: validationRequestBody,
   };
 
-  ipcProcess.send("req-validate-item", vadlidationRequest);
+
   ipcProcess.once(`${vadlidationRequest.uniqueID}`, 
     /** 
      * @param {{ 
@@ -150,8 +151,30 @@ app.post("/validate-item", (req, res) => {
     (validationResponse) => {
     res.send(JSON.stringify(validationResponse));
   });
+  ipcProcess.send("req-validate-item", vadlidationRequest);
 });
 
+app.post("/submit-sale", (req, res) => {
+  /** @type {Array<{ref: string, qty: number}>} saleRequestBody*/
+  const saleRequestBody = req.body.sale;
+  /** @type {{uniqueID: string, body: saleRequestBody}} */
+  const saleRequest = {
+    uniqueID: uuidv4(),
+    body: saleRequestBody
+  };
+
+  ipcProcess.once(`${saleRequest.uniqueID}`,
+    /**
+     * @param {{
+     *   hasError: boolean,
+     *   errorMessage?: string
+     * }} saleResponse
+     */
+    (saleResponse) => {
+      res.send(JSON.stringify(saleResponse));
+    });
+  ipcProcess.send("req-submit-sale", saleRequest);
+});
 getIP().then((ip) => {
   app.listen(PORT, [ip, "localhost"], () => {
     ipcProcess.send("listening", "listening :)");

@@ -228,4 +228,7 @@ function validateItem(db, validationRequestBody) {
   });
 }
 
+// run validate item on all sales and validate qtys
+// any errors including invalid qtys go to saleResponse
+
 module.exports = { dbConnect, addItem, addUser, validateItem };

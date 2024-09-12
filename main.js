@@ -442,6 +442,30 @@ const createMainWindow = (db) => {
     },
   );
 
+  expressFork.ipcCustom.on(
+    "req-submit-sale",
+    /** @param {{uniqueID: number, body: Array<{ref, req}>}} saleRequest */
+    (saleRequest) => {
+      writeSale(db, saleRequest.body).then(
+        /**
+         * @param {{
+         *   hasError: boolean,
+         *   errorMessage?: string
+         * }} saleResponse
+         */
+        (saleResponse) => {
+          expressFork.ipcCustom.send(
+            `${saleRequest.uniqueID}`,
+            saleResponse
+          );
+          console.log("sale response: ", saleResponse);
+        },
+        (err) => {
+          console.error(err);
+        }
+      );
+    },
+  );
   // all on's that arent "listening" should probably be
   // declared first.
   expressFork.ipcCustom.on("listening", (data) => {
