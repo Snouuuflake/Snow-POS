@@ -20,7 +20,7 @@
    │act_ext_id       integer                                          │
    │act_extra_text   text                                             │
    │act_total_after  integer NOT NULL                                 │
-   │act_user_id  integer NOT NULL                                     │
+   │act_user_id      integer NOT NULL                                 │
    │date             integer NOT NULL                                 │
    └──────────────────────────────────────────────────────────────────┘
 

@@ -333,76 +333,99 @@ function doSale(db, saleRequestBody) {
           // making act for every item
           // editing item qty
           // ----------------------------------------
-          Promise.allSettled(
-            // promise array >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-            [
-              new Promise((resolve2, reject2) => {
-                db.run(
-                  "INSERT INTO Sales(sale_json_inventory, sale_date) Values(?, ?)",
-                  [JSON.stringify(saleRequestBody), new Date().toISOString],
-                  (err) => {
-                    if (err) {
-                      reject2(err);
-                    } else {
-                      resolve2();
-                    }
-                  },
-                );
-              }),
-              // Writing to Items >>>>>>>>>>>>>>>>>>>>
-              ...saleRequestBody.map((requestItem) => {
-                new Promise((resolve2, reject2) => {
-                  return new Promise((resolve3, reject3) => {
-                    db.get(
-                      "SELECT item_qty from Items WHERE item_ref = ?",
-                      [item.ref],
-                      (err, row) => {
-                        if (err) {
-                          reject2(err);
-                        } else {
-                          db.run(
-                            `
+
+          /** @type {Promise<number>} */
+          new Promise((resolve2, reject2) => {
+            db.run(
+              "INSERT INTO Sales(sale_json_inventory, sale_date) Values(?, ?)",
+              [JSON.stringify(saleRequestBody), new Date().toISOString()],
+              function(err) {
+                if (err) {
+                  reject2(err);
+                } else {
+                  resolve2(this.lastID);
+                }
+              },
+            );
+          })
+            .then((lastID) => {
+              Promise.allSettled(
+                saleRequestBody.map((requestItem) => {
+                  return new Promise((resolve2, reject2) => {
+                    /** @type {Promise<number>} */
+                    return new Promise((resolve3, reject3) => {
+                      db.get(
+                        "SELECT item_qty from Items WHERE item_ref = ?",
+                        [item.ref],
+                        (err, row) => {
+                          if (err) {
+                            reject2(err);
+                          } else {
+                            db.run(
+                              `
                             UPDATE Items
                             SET
                               item_qty = ?
                             WHERE
                               item_ref = ?;`,
-                            [row.item_qty - requestItem.qty, requestItem.ref],
-                            (err) => {
-                              if (err) {
-                                reject3(err);
-                              } else {
-                                resolve3();
-                              }
-                            },
-                          );
-                        }
-                      },
-                    );
-                  }).then(() => {
-                    return new Promise((resolve3, reject3) => {
-                      db.run(
-                        "INSERT INTO Acts(sale_json_inventory, sale_date) Values(?, ?)",
-                      )
-                    })
+                              [row.item_qty - requestItem.qty, requestItem.ref],
+                              (err) => {
+                                if (err) {
+                                  reject3(err);
+                                } else {
+                                  resolve3(row.item_qty - requestItem.qty);
+                                }
+                              },
+                            );
+                          }
+                        },
+                      );
+                    }).then((remaining) => {
+                      return new Promise((resolve3, reject3) => {
+                        db.run(
+                          // TODO: add act_extra_text && user_id
+                          "INSERT INTO , Acts(act_type, act_item_ref, act_qty, act_ext_id, act_extra_text, act_total_after, act_user_id, date) Values(?, ?, ?, ?, ?, ?, ?, ?)",
+                          [
+                            "SALE", // ----------------- type
+                            requestItem.ref, // -------- item_ref
+                            requestItem.qty, // -------- qty
+                            lastID, // ---------------------- ext_id
+                            "", // --------------------- extra_text
+                            remaining, // -------------- total_after
+                            1, // ---------------------- user_id
+                            new Date().toISOString(), // date
+                          ],
+                          // act_type
+                          // act_item_ref
+                          // act_qty
+                          // act_ext_id
+                          // act_extra_text
+                          // act_total_after
+                          // act_user_id
+                          // date
+                          (err) => {
+                            if (err) {
+                              reject3(err);
+                            } else {
+                              resolve3();
+                            }
+                          },
+                        );
+                      });
+                    });
                   });
-                });
-              }),
-              // Writing to Items <<<<<<<<<<<<<<<<<<<<
-              // Writing to Acts >>>>>>>>>>>>>>>>>>>>>
-              ...saleRequestBody.map((requestItem) => {
-                new Promise((resolve2, reject2) => {});
-              }),
-              // Writing to Acts <<<<<<<<<<<<<<<<<<<<<
-              // promise array <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-            ],
-          );
+                }),
+              );
+            })
+            .catch((err2) => {
+              resolve1({ hasError: true, errorMessage: err2.message });
+            });
           // ----------------------------------------
         }
       },
-      (err) => {
-        console.error(err);
-        resolve1({ hasError: true, errorMessage: err.message });
+      (err1) => {
+        console.error(err1);
+        resolve1({ hasError: true, errorMessage: err1.message });
       },
     );
   });
