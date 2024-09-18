@@ -204,6 +204,15 @@ function validateItem(db, validationRequestBody) {
 
     db.get(sql, validationRequestBody.ref, (err, row) => {
       const validationResponse = {
+        /**
+         * @type {{
+         *  hasError: boolean,
+         *  errorMessage?: string,
+         *  exists?: boolean,
+         *  qty?: number,
+         *  price?: number
+         * }}
+         */
         hasError: false,
         errorMessage: undefined,
         exists: undefined,
@@ -228,7 +237,175 @@ function validateItem(db, validationRequestBody) {
   });
 }
 
-// run validate item on all sales and validate qtys
-// any errors including invalid qtys go to saleResponse
+/**
+ * run validate item on all sales and validate qtys
+ * @param db db
+ * @param {Array<{ref: string, qty: number}>} saleRequestBody
+ */
+function validateSale(db, saleRequestBody) {
+  return new Promise((resolve) => {
+    /**
+     * @type {{
+     *   hasError: boolean,
+     *   errorMessage?: string
+     * }} saleResponse
+     */
+    const saleResponse = { hasError: false, errorMessage: "" };
+    Promise.all(
+      saleRequestBody.map((item) => {
+        return validateItem(db, item);
+      }),
+    )
+      .then((results) => {
+        const mappedResults = results.map((res, i) => [
+          saleRequestBody[i],
+          res,
+        ]);
+        mappedResults.forEach(
+          /**
+           * @param  {[
+           * {
+           *  ref: string,
+           *  qty: number,
+           * {
+           *  hasError: boolean,
+           *  errorMessage?: string,
+           *  exists?: boolean,
+           *  qty?: number,
+           *  price?: number
+           * }]} tuple
+           */
+          (tuple) => {
+            console.log(tuple[1]);
+            if (
+              tuple[1].hasError ||
+              tuple[0].qty > tuple[1].qty ||
+              !tuple[1].exists
+            ) {
+              saleResponse.hasError = true;
+              if (!tuple[1].exists) {
+                saleResponse.errorMessage += `${tuple[0].ref}: No existe\n`;
+              }
+              if (tuple[0].qty > tuple[1].qty) {
+                saleResponse.errorMessage += `${tuple[0].ref}: Faltan ${tuple[0].qty - tuple[1].qty} piezas\n`;
+              }
+              if (tuple[1].hasError) {
+                saleResponse.errorMessage += `${tuple[0].ref}: Error; ${tuple[1].errorMessage}\n`;
+              }
+            } else {
+              saleResponse.hasError = false;
+            }
+          },
+        );
+        resolve(saleResponse);
+      })
+      .catch((err) => {
+        saleResponse.hasError = true;
+        saleResponse.errorMessage = `Error in Promise.all: ${err.message}`;
+        resolve(saleResponse);
+      });
+  });
+}
+
+/**
+ * calls vaitdateSale
+ * @param db
+ * @param {Array<{ref: string, qty: number}>} saleRequestBody
+ * @return {Promise<{
+ *             hasError: boolean,
+ *             errorMessage?: string,
+ *           }>}
+ */
+function doSale(db, saleRequestBody) {
+  return new Promise((resolve1) => {
+    validateSale(db, saleRequestBody).then(
+      /**
+       * @param {{
+       *   hasError: boolean,
+       *   errorMessage?: string
+       * }} saleResponse
+       */
+      (saleResponse) => {
+        if (saleResponse.hasError) {
+          resolve1(saleResponse);
+        } else {
+          // INFO: making sale entry,
+          // making act for every item
+          // editing item qty
+          // ----------------------------------------
+          Promise.allSettled(
+            // promise array >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+            [
+              new Promise((resolve2, reject2) => {
+                db.run(
+                  "INSERT INTO Sales(sale_json_inventory, sale_date) Values(?, ?)",
+                  [JSON.stringify(saleRequestBody), new Date().toISOString],
+                  (err) => {
+                    if (err) {
+                      reject2(err);
+                    } else {
+                      resolve2();
+                    }
+                  },
+                );
+              }),
+              // Writing to Items >>>>>>>>>>>>>>>>>>>>
+              ...saleRequestBody.map((requestItem) => {
+                new Promise((resolve2, reject2) => {
+                  return new Promise((resolve3, reject3) => {
+                    db.get(
+                      "SELECT item_qty from Items WHERE item_ref = ?",
+                      [item.ref],
+                      (err, row) => {
+                        if (err) {
+                          reject2(err);
+                        } else {
+                          db.run(
+                            `
+                            UPDATE Items
+                            SET
+                              item_qty = ?
+                            WHERE
+                              item_ref = ?;`,
+                            [row.item_qty - requestItem.qty, requestItem.ref],
+                            (err) => {
+                              if (err) {
+                                reject3(err);
+                              } else {
+                                resolve3();
+                              }
+                            },
+                          );
+                        }
+                      },
+                    );
+                  }).then(() => {
+                    return new Promise((resolve3, reject3) => {
+                      db.run(
+                        "INSERT INTO Acts(sale_json_inventory, sale_date) Values(?, ?)",
+                      )
+                    })
+                  });
+                });
+              }),
+              // Writing to Items <<<<<<<<<<<<<<<<<<<<
+              // Writing to Acts >>>>>>>>>>>>>>>>>>>>>
+              ...saleRequestBody.map((requestItem) => {
+                new Promise((resolve2, reject2) => {});
+              }),
+              // Writing to Acts <<<<<<<<<<<<<<<<<<<<<
+              // promise array <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+            ],
+          );
+          // ----------------------------------------
+        }
+      },
+      (err) => {
+        console.error(err);
+        resolve1({ hasError: true, errorMessage: err.message });
+      },
+    );
+  });
+}
 
 module.exports = { dbConnect, addItem, addUser, validateItem };
